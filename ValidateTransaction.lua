@@ -24,15 +24,52 @@ local function basicChecks(tx, trans)
 	return;
 end
 
+local function isDoubleSpending(tx, txpool)
+	local trans = txpool.trans;
+
+	local function isSpentByTx(preOutput, txInPool)
+		for k,v in pairs(txInPool.inputs) do 
+			if v.preOutput:equal(preOutput) then
+				return true;
+			end
+		end
+		return false;
+	end
+	
+	local function isSpentInPool(preOutput)
+		for k,v in trans:iterator() do
+			if isSpentByTx(preOutput,v) then
+				return true;
+			end
+		end
+		return false;
+	end
+
+	for k,v in pairs(tx.inputs) do
+		if isSpentInPool(v.preOutput) then
+			return true;
+		end
+	end
+
+	return false;
+end
+
 function ValidateTransaction.validate(transaction, txpool,chain)
 	local trans = txpool.trans;
 
 	local ret = basicChecks;
 	if ret then return ret end;
 
+	local data = chain:fetchTransaction(transaction:hash());
+	if data then
+		return "Error:TransactionExistedInDatabase";
+	end
 
+	if not isDoubleSpending(transaction, txpool) then
+		return "Error:DoubleSpending";
+	end
 
-
+	return;
 end
 
 local maxMoney = Constants.maxMoney;

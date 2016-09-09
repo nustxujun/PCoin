@@ -81,3 +81,4 @@ function TransactionPool:removeDependencies(hash)
 		self:remove(v);
 	end
 end
+

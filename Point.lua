@@ -24,7 +24,9 @@ function Point:toData()
 end
 
 function Point:isNull()
-	return hash == nil or index == nil;
+	return self.hash == nil or self.index == nil;
 end
 
-
+function Point:equal(p)
+	return self.hash == p.hash and self.index == p.index
+end
