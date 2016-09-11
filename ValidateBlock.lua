@@ -13,6 +13,13 @@ local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local isValidProofOfWork = Utility.validateProofOfWork;
 local ValidateBlock = commonlib.gettable("Mod.PCoin.ValidateBlock");
 
+local maxBlockScriptSigOps = Constants.maxBlockScriptSignatureOperations;
+
+local function workRequired(height)
+
+
+end
+
 local function isValidTimestamp(timestamp) 
 	
 
@@ -22,6 +29,15 @@ end
 local function isValidVersion(version)
 	return true
 end
+
+local function legacySigOpsCount(trans)
+	
+end
+
+local function scriptHashSignatureOperationsCount(outputScript, inputScript)
+
+end
+
 
 local function isDistinctTransactionSet(trans)
 	local hashs = {}
@@ -40,10 +56,6 @@ local function isDistinctTransactionSet(trans)
 		end
 	end
 	return true;
-end
-
-local function legacySigOpsCount(trans)
-	
 end
 
 local function checkBlock(block)
@@ -75,7 +87,7 @@ local function checkBlock(block)
 	end
 
 	local sigops = legacySigOpsCount(trans)
-	if sigops > maxBlockScriptSignatureOperations then
+	if sigops > maxBlockScriptSigOps then
 		return "Error:TooManySigs";
 	end
 
@@ -86,10 +98,6 @@ local function checkBlock(block)
 	return;
 end
 
-local function workRequired(height)
-
-
-end
 
 local function acceptBlock(block, height)
 	local header = block.header;
@@ -104,19 +112,173 @@ local function acceptBlock(block, height)
 	return
 end
 
-function connectBlock(block)
+local function transactionExists(hash, fork, chain)
+	local data = chain:fetchTransactionData(hash);
+	if not data then
+		return false;
+	end
 
+	return data.height <= fork;
 end
 
-function ValidateBlock.validate(block, height, blockchain)
+local function isOutputSpent(outpoint, fork, chain)
+	local data = chain:fetchSpendData(outpoint);
+	if not data then 
+		return false;
+	end
+
+	return transactionExists(data.hash, fork, chain);
+end
+
+local function isSpentDuplicate(tx, fork, chain)
+	local hash = tx:hash();
+
+	if not transactionExists(hash, fork, chain)
+		return false;
+	end
+
+	for index,output in pairs(tx.outputs) do
+		if not isOutputSpent({hash, index}) then 
+			return false;
+		end
+	end
+
+	return true;
+end
+
+local function fetchOrphanTransaction(hash, fork, orphanchain, orphanIndex)
+	for index , orphan in pairs(orphanchain) do
+		for _, tx in pairs(orphan.block.transactions) do
+			if tx:hash() == hash then
+				return tx, fork + index;
+			end
+		end
+
+		if index >= orphanIndex then
+			return
+		end
+	end
+end
+
+local function fetchTransaction(hash, fork, chain, orphanchain, orphanIndex)
+	local data = chain:fetchTransactionData(hash);
+
+	if (not data) or (data.height > fork ) then
+		return fetchOrphanTransaction(hash, fork, orphanchain, orphanIndex );
+	elseif data then
+		return Transaction.create(data.transaction), data.height;
+	end
+end
+
+local function orphanIsSpent(outpoint, skipTx, skipInput, orphanchain, orphanIndex)
+	for index, orphan in pairs(orphanchain) do
+		for indextx, tx in pairs(orphan.block.transactions) do
+			for indexin, input in pairs(tx.inputs) do
+				-- skip if is self
+				if not (index == orphanIndex and indextx == skipTx and indexin == skipInput) then
+					if input.preOutput == outpoint then
+						return true
+					end
+				end
+			end
+		end
+	end
+	return false;
+end
+
+local function isOutputSpentIncludeOrphans(outpoint,indexTx, indexInput, fork, chain, orphanchain)
+	if isOutputSpent(outpoint, fork, chain) then
+		return true;
+	end
+
+	return orphanIsSpent(outpoint, indexTx, indexInput,orphanchain, orphanIndex) 
+end
+
+local function validateInputs(tx, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn)
+	for index, input in pairs(tx.inputs) do
+		local preOutputPt = input.preOutput;
+
+		local preOuputTx , preHeight = fetchTransaction(preOutputPt.hash, fork, chain, orphanchain, orphanIndex);
+		if not preOutputTx then
+			return {error="Error:FetchingOutputTransactionFailed"};
+		end
+
+		local preOutput = preOuputTx.outputs[preOutputPt.index];
+		local count = scriptHashSignatureOperationsCount(preOutput.script, input.script);
+		if not count then
+			return {error="Error:InvalidEvalScript"};
+		end
+
+		totalSigops = totalSigops + count;
+		if totalSigops > maxBlockScriptSigOps then
+			return {error="Error:TooManySigs"};
+		end
+
+		local outputValue = preOuput.value;
+		if outputValue > Constants.maxMoney then 
+			return {error="Error:OutputValueOverflow"};
+		end
+
+		if not ValidateTransaction.checkConsensus(preOutput.script, input, index, tx, --[[, FLAG]]) then
+			return {error="Error:InputScriptInvalidConsensus"};
+		end
+		
+		if isOutputSpentIncludeOrphans(preOutputPt, fork, chain,orphanchain, orphanIndex) then
+			return {error="Error:DoubleSpend(IncludeInOrphanChain)"}
+		end
+
+		valueIn = valueIn + outputValue;
+
+		if valueIn > Constants.maxMoney then
+			return {error="Error:InputValueOverflow"};
+		end
+	end
+	return {valueIn = valueIn, totalSigops = totalSigops};
+end
+
+local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
+	local fees = 0;
+	local totalSigops = 0;
+	
+	for index,tx in pairs(block.transactions) do
+		if isSpentDuplicate(tx, fork, chain) then 
+			return "Error:DuplicateOrSpent";
+		end
+
+		totalSigops = totalSigops + legacySigOpsCount(tx);
+		if totalSigops > maxBlockScriptSigOps then 
+			return "Error:TooManySigs"
+		end
+
+		local ret = validateInputs(tx, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn );
+		if ret.error then
+			return ret.error;
+		else
+			totalSigops = ret.totalSigops;
+		end
+
+		local valueOut = tx:totalOutputValue();
+		if ret.valueIn < valueOut then
+			return "Error:FeesOutOfRange";
+		end
+		fees = fees + valueIn - valueOut;
+		if fees > Constants.maxMoney then
+			return "Error:FeesOutOfRange";
+		end
+	end
+end
+
+function ValidateBlock.validate(block, index, fork, blockchain, orphanchain)
+	local height = fork + index;
 	local ret = checkBlock(block);
 	if ret then return ret end;
 
 	ret = acceptBlock(block, height)
 	if ret then return ret end;
 
-	ret = connectBlock(block)
+	ret = connectBlock(block, fork, blockchain, orphanchain, index)
 	if ret then return ret end;
 	
+
 	return ;
 end

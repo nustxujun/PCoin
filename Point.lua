@@ -5,8 +5,10 @@
 
 local Point = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Point"));
 
-Point.hash = nil;
-Point.index = nil;
+function Point:ctor()
+	self.hash = nil;
+	self.index = nil;
+end
 
 function Point.create(data)
 	local p = Point:new();

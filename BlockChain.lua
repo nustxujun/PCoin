@@ -15,9 +15,13 @@ local Database = commonlib.gettable("Mod.PCoin.Database");
 
 local BlockChain = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockChain"));
 
-BlockChain.database = nil;
-BlockChain.blocks = nil;
-BlockChain.organizer = nil;
+function BlockChain:ctor()
+	self.database = nil;
+	self.blocks = nil;
+	self.transactions = nil;
+	self.spends = nil;
+	self.organizer = nil;
+end
 
 function BlockChain.create(settings)
 	local bc = BlockChain:new()
@@ -25,12 +29,11 @@ function BlockChain.create(settings)
 	return bc;
 end
 
-function BlockChain:ctor()
-end
-
 function BlockChain:init(settings)
 	self.database = Database.create(settings.database);
 	self.blocks = self.database.blocks; -- BlockDatabase;
+	self.transactions = self.database.transactions; -- TransactionDatabase;
+	self.spends = self.database.spends;
 	self.organizer = Organizer.create(self);
 end
 
@@ -56,11 +59,7 @@ function BlockChain:store(blockdetail)
 	end
 
 	self.organizer:organize();
-
-end
-
-function BlockChain:fetchTransaction(hash)
-	
+	return true;
 end
 
 -- get block work from HEIGHT to TOP
@@ -78,6 +77,17 @@ function BlockChain:getDifficulty(height)
 	end
 
 	return diff;
+end
+
+
+function BlockChain:fetchTransactionData(hash)
+	local err, data = self.transactions:get(hash)
+	return data;
+end
+
+function BlockChain:fetchSpendData(outpoint)
+	local err, data = self.spends:get(outpoint);
+	return data;
 end
 
 
@@ -99,4 +109,13 @@ function BlockChain:pop(height --[[default: top]])
 		top = blocks:getHeight();
 	end
 	return ret;
+end
+
+function BlockChain:report()
+	echo("BlockChain:")
+	local top = self:getHeight();
+	echo("	height:" .. top .. " difficulty:" .. self:getDifficulty(top));
+	
+	self.organizer:report();
+	self.database:report()
 end

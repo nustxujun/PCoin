@@ -14,11 +14,12 @@ local Input = commonlib.gettable("Mod.PCoin.Input");
 
 local Transaction = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Transaction"));
 
-Transaction.version = nil;
-Transaction.inputs = {};
-Transaction.outputs= {};
-Transaction.locktime = nil;
-
+function Transaction:ctor()
+	self.version = nil;
+	self.inputs = {};
+	self.outputs= {};
+	self.locktime = nil;
+end
 
 function Transaction.create(data)
 	local t = Transaction:new();
@@ -54,5 +55,13 @@ function Transaction:hash()
 end
 
 function Transaction:isCoinBase()
-	return #input == 1 and input[1].preOuput:isNull();
+	return false;
+end
+
+function Transaction:totalOutputValue()
+	local total = 0;
+	for k,v in pairs(self.outputs) do 
+		total = total + v.value;
+	end
+	return total;
 end

@@ -10,45 +10,48 @@ local BlockDetail = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockDe
 local TableDatabase = commonlib.gettable("System.Database.TableDatabase");
 local BlockDatabase = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockDatabase"));
 
-
---{item="desc", height=1}
-local Header = "BlocksDesc";
 local Collection = "Blocks";
 
-BlockDatabase.db = nil;
-BlockDatabase.height = 0;
-
 function BlockDatabase:ctor()
+	self.db = nil;
+	self.height = 0;
 end
 
 function BlockDatabase:init(db)
 	self.db = db;
-	local err, data = self.db[Header]:findOne({item="desc"})
+	local err, data = self.db[Collection]:findOne({header=Collection})
 	if data then
 		self.height = data.height 
 		echo("local blocks height: " .. self.height);
 	else
 		echo("generate genesis block");
 		self:setHeight(1);
-		local bd = BlockDetail.create(Block.genesis());
-		bd:setHeight(1);
-		self:store(bd)
+		local genesis = Block.genesis();
+
+		self:store(genesis.header:hash(), 1, genesis:toData())
 	end
 	return self;
 end
 
 function BlockDatabase:getBlockByHash(hashvalue, callback)
-	return self.db[Collection]:findOne({hash = hashvalue}, callback);
+	local err, data = self.db[Collection]:findOne({hash = hashvalue}, callback);
+	if data and data.height >self.height then	
+		data = nil;
+	end
+	return err, data;
 end
 
 function BlockDatabase:getBlockByHeight(height,callback)
+	if height > self.height then
+		return 
+	end
+
 	return self.db[Collection]:findOne({height = height}, callback);
 end
 
 
-function BlockDatabase:store(blockdetail)
-	local height = blockdetail:getHeight();
-	self.db[Collection]:insertOne({height = height}, {height = height, hash = blockdetail:getHash(), block = blockdetail.block:toData()} )
+function BlockDatabase:store(hash, height, blockData )
+	self.db[Collection]:insertOne({height = height}, {height = height, hash = blockdetail:getHash(), block = blockData} )
 end
 
 -- unlink blocks above the height from database(not removing)
@@ -59,7 +62,7 @@ end
 function BlockDatabase:setHeight(h)
 	echo("error...setheight.. "..h)
 	self.height = h;
-	self.db[Header]:insertOne({item = "desc"}, {item="desc", height = h} )
+	self.db[Collection]:insertOne({header = Collection}, {header = Collection, height = h} )
 end
 
 function BlockDatabase:getHeight()

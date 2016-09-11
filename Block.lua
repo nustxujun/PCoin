@@ -6,7 +6,6 @@
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/TransactionPool.lua");
 
-local TransactionPool = commonlib.gettable("Mod.PCoin.TransactionPool");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local bitcoinHash = Utility.bitcoinHash;
 
@@ -32,17 +31,7 @@ function Block.genesis()
 end
 ----------------------------------------
 
-
-BlockHeader.version = nil;
-BlockHeader.preBlockHash = nil;
-BlockHeader.merkle = nil;
-BlockHeader.timestamp= nil;
-BlockHeader.nonce= nil;
-BlockHeader.bits = nil;
-BlockHeader.hashvalue = nil;
-
 -- HEADER 
---factory
 function BlockHeader.create(ver, prehash, merkle, time, nonce)
 	local h = BlockHeader:new();
 	if type(ver) == "table" then
@@ -54,6 +43,13 @@ function BlockHeader.create(ver, prehash, merkle, time, nonce)
 end
 
 function BlockHeader:ctor()
+	self.version = nil;
+	self.preBlockHash = nil;
+	self.merkle = nil;
+	self.timestamp= nil;
+	self.nonce= nil;
+	self.bits = nil;
+	self.hashvalue = nil;
 end
 
 function BlockHeader:fromData(data)
@@ -86,8 +82,11 @@ end
 
 
 -- BLOCK ------------------------------------------------------
-Block.header = nil;
-Block.transactions = {};
+
+function Block:ctor()
+	self.header = nil;
+	self.transactions = {};
+end
 
 function Block.create(data)
 	local b = Block:new();
@@ -149,11 +148,6 @@ function Block:generateMerkleRoot()
 end
 
 -- BLOCK_DETAIL------------------------------------------------
-
-BlockDetail.block = nil;
-BlockDetail.height = nil;
-BlockDetail.processed = nil;
-
 function BlockDetail.create(block)
 	local b = BlockDetail:new()
 	b.block = block;
@@ -161,6 +155,9 @@ function BlockDetail.create(block)
 end
 
 function BlockDetail:ctor()
+	self.block = nil;
+	self.height = nil;
+	self.processed = nil;
 end
 
 function BlockDetail:getPreHash()

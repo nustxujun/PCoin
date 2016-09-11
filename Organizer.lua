@@ -16,16 +16,15 @@ local log = Utility.log;
 local OrphanPool = commonlib.gettable("Mod.PCoin.OrphanPool");
 local Organizer = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Organizer"));
 
-Organizer.chain = nil;
-Organizer.orphans = nil;
+function Organizer:ctor()
+	self.chain = nil;
+	self.orphans = nil;
+end
 
 function Organizer.create(blockchain)
 	local o = Organizer:new();
 	o:init(blockchain);
 	return o
-end
-
-function Organizer:ctor()
 end
 
 function Organizer:init(chain)
@@ -53,19 +52,19 @@ function Organizer:process(blockdetail)
 
 	local height = self.chain:getHeight(hash);
 	if height then
-		self:replaceChain(height , chain)
+		self:replaceChain(height , orphanchain)
 	end
 	blockdetail:setProcessed()
 end
 
-function Organizer:replaceChain(fork, chain)
+function Organizer:replaceChain(fork, orphanchain)
 	local verify = self.verify;
 	local orphanwork = 0
 	-- check orphanchain and get block work;
-	for k,v in ipairs(chain) do
-		local ret = verify(v.block, fork, k);
+	for k,v in ipairs(orphanchain) do
+		local ret = verify(v.block, fork, k,orphanchain);
 		if ret then -- fail
-			self:clipOrphans(chain, k);
+			self:clipOrphans(orphanchain, k);
 			break;	
 		end
 		
@@ -87,7 +86,7 @@ function Organizer:replaceChain(fork, chain)
 	--then add the valid orphans to main chain
 	local arrivalindex = fork + 1;
 	local orpahns = self.orpahns;
-	for k,v in ipairs(chain) do
+	for k,v in ipairs(orphanchain) do
 		orphans.remove(v);
 
 		v:setHeight(arrivalindex);
@@ -105,8 +104,12 @@ function Organizer:replaceChain(fork, chain)
 
 end
 
-function Organizer:verify(block, fork, index)
-	return validater(block, fork + index , self.chain);
+function Organizer:verify(block, fork, index, orphanchain)
+	local ret = validater(block, index , fork, self.chain, orphanchain);
+
+	if ret then
+		Utility.log("failed to verify Block[height:%d, fork:%d]", fork + index, fork)
+	end
 end
 
 --remove all blocks above the invalid one(included)
@@ -121,4 +124,8 @@ function Organizer:clipOrphans(chain, index)
 		orplans:remove(b);
 		chain[index] = nil;
 	end 
+end
+
+function Organizer:report()
+	self.orphans:report()
 end

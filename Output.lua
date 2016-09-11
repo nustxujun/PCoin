@@ -9,8 +9,10 @@ NPL.load("(gl)script/PCoin/Script.lua");
 local Script = commonlib.gettable("Mod.PCoin.Script");
 local Output = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Output"));
 
-Output.value = nil;
-Output.script = nil;
+function Output:ctor()
+	self.value = nil;
+	self.script = nil;
+end
 
 function Output.create(data)
 	local i = Output:new()

@@ -11,9 +11,11 @@ local Script = commonlib.gettable("Mod.PCoin.Script");
 local Point = commonlib.gettable("Mod.PCoin.Point");
 local Input = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Input"));
 
-Input.preOutput = nil;
-Input.script = nil;
-Input.sequence = nil;
+function Input:ctor()
+	self.preOutput = nil;
+	self.script = nil;
+	self.sequence = nil;
+end
 
 function Input.create(data)
 	local i = Input:new()

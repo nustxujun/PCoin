@@ -12,8 +12,10 @@ local validator = ValidateTransaction.validate;
 
 local TransactionPool = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.TransactionPool"));
 
-TransactionPool.chain = nil -- blockchain
-TransactionPool.trans = nil;
+function TransactionPool:ctor()
+	self.chain = nil -- blockchain
+	self.trans = nil;
+end
 
 function TransactionPool.create(chain, capacity)
 	local t = TransactionPool:new()
@@ -37,12 +39,9 @@ function TransactionPool:store(transaction)
 	self:add(transaction);
 end
 
-function TransactionPool:add(tran)
-	local trans = self.trans
-	if trans:size() > self.capacity then
-		self:remove(trans:front(), 1);
-	end
-	trans:push_back(tran);
+function TransactionPool:get(hash)
+	local index, tx = self.trans:find(function (t) return t:hash() == hash ;end)
+	return tx;
 end
 
 function TransactionPool:remove(tran, index)
@@ -50,6 +49,14 @@ function TransactionPool:remove(tran, index)
 	if self:removeSingle(hash, index) then
 		self:removeDependencies(hash)
 	end
+end
+
+function TransactionPool:add(tran)
+	local trans = self.trans
+	if trans:size() > self.capacity then
+		self:remove(trans:front(), 1);
+	end
+	trans:push_back(tran);
 end
 
 function TransactionPool:removeSingle(hash, index)
@@ -82,3 +89,6 @@ function TransactionPool:removeDependencies(hash)
 	end
 end
 
+function TransactionPool:report()
+	echo("TransactionPool")
+end

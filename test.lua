@@ -26,3 +26,19 @@ end
 
 testBlockChain();
 
+
+--[[
+	encryption algorithm
+
+	network(connection)
+
+	mining
+
+	script 
+
+	wallet
+
+	unit testing
+	...
+
+]]

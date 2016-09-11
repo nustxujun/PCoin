@@ -5,10 +5,11 @@
 
 local Buffer = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Buffer"));
 
-
-Buffer.data = {};
-Buffer.first = 0;
-Buffer.last = -1;
+function Buffer:ctor()
+	self.data = {};
+	self.first = 0;
+	self.last = -1;
+end
 
 function Buffer:push_back(elem)
 	self.last = self.last + 1;

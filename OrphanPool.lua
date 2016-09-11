@@ -5,7 +5,9 @@
 
 local OrphanPool = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.OrphanPool"));
 
-OrphanPool.pool = {};
+function OrphanPool:ctor()
+	self.pool = {};
+end
 
 function OrphanPool:trace(blockdetail)
 	local trace = {};
@@ -47,4 +49,12 @@ function OrphanPool:unprocessed()
 		end
 	end
 	return ret;
+end
+
+function OrphanPool:report()
+	echo("OrphanPool")
+	echo("	orphan size:".. #self.pool)
+	local q = self:unprocessed();
+	echo("	unprocessed orphan size:" .. #q);
+	
 end
