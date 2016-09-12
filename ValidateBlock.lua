@@ -6,11 +6,12 @@
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/ValidateTransaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
+NPL.load("(gl)script/PCoin/uint256.lua");
 
+local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local ValidateTransaction = commonlib.gettable("Mod.PCoin.ValidateTransaction");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
-local isValidProofOfWork = Utility.validateProofOfWork;
 local ValidateBlock = commonlib.gettable("Mod.PCoin.ValidateBlock");
 
 local maxBlockScriptSigOps = Constants.maxBlockScriptSignatureOperations;
@@ -37,23 +38,29 @@ local function actualTimeSpan(height, interval,chain)
 end
 
 
--- then dynamic difficulty algorithm need int64 supported(uint256 calculation)
 local function workRequired(height, chain)
-	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
-	return previous.bits;
+	if (height % retargetingInterval) == 0 then
+		local actual = actualTimeSpan(height, retargetingInterval, chain);
+		local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+		local upper = targetTimeSpanSeconds * retargetingFactor;
+		local lower = targetTimeSpanSeconds / retargetingFactor;
 
+		local constrained = math.min(math.max(lower, actual), upper);
 
-	-- if (height % retargetingInterval) == 0 then
-	-- 	local actual = actualTimeSpan(height, retargetingInterval, chain);
-	-- 	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+		local retarget = uint256:new():setCompact(previous.bits);
+		retarget = retarget * constrained;
+		retarget = retarget / targetTimeSpanSeconds;
 
-
+		if retarget > Constants.maxTarget then
+			retarget = Constants.maxTarget;
+		end
 		
-	-- else
-	-- 	--previous block
-	-- 	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
-	-- 	return previous.bits;
-	-- end
+		return retarget:getCompact();
+	else
+		--previous block
+		local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+		return previous.bits;
+	end
 end
 
 local twoHour = 2 * 60 * 60;
@@ -83,6 +90,16 @@ local function isDistinctTransactionSet(trans)
 		end
 	end
 	return true;
+end
+
+local function isValidProofOfWork(hash, bits)
+	local target = uint256:new():setCompact(bits);
+	if not target or  target > Constants.maxTarget then
+		return false;
+	end
+
+	local ourValue = uint256:new():setHash(hash);
+	return ourValue <= target;
 end
 
 local function checkBlock(block)

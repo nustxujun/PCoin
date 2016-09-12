@@ -28,17 +28,13 @@ local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 
 local WIDTH = 32;
 
-function uint256.create(bits)
-    if (type(bits) == "table" ) then
-        return bits:clone();
-    elseif type(bits) == "string" then
-        local u = uint256:new()
-        u:setHash(bits);
-        return u
+function uint256.cast(b)
+    if (type(b) == "table" ) then
+        return b;
+    elseif type(b) == "string" then
+        return uint256:new():setHash(b)
     else
-        local u = uint256:new()
-        u:setCompact(bits);
-        return u;
+        return uint256:new(modf(b)); 
     end
 end
 
@@ -98,35 +94,73 @@ function uint256:setCompact(bits)
     local overflow =(word ~= 0 and size > 34) or 
                     (word > 0xff and size > 33) or 
                     (word > 0xffff and size > 32)
-    return self, negative, overflow;
+    if negative or overflow then
+        return nil, negative, overflow
+    else
+        return self, negative, overflow;
+    end
 end
 
+function uint256:getLow24()
+    return self.pn[1] + lshift(self.pn[2], 8) + lshift(self.pn[3],16)
+end
+
+function uint256:getCompact(negative)
+    local size = modf((self:bits() + 7) / 8);
+    local compact = 0;
+    local pn = self.pn;
+
+    if size <= 3 then 
+        compact = self:getLow24(); 
+    else
+        local bn = uint256.__rshift(self, 8 * (size - 3));
+        compact = bn:getLow24();
+    end
+    --[[
+         The comment in libcoin is like this: 
+            The 0x00800000 bit denotes the sign. Thus, if it is already set,
+            divide the mantissa by 256 and increase the exponent.
+    ]]
+    if band(compact, 0x00800000) ~= 0 then
+        compact = rshift(compact, 8);
+        size = size + 1;
+    end
+
+    compact = bor(compact, lshift(size, 24))
+    if negative and band(compact, 0x007fffff)~=0 then
+        return bor(compact ,  0x00800000);
+    else
+        return compact;
+    end
+end
+
+
 function uint256:setHash(hashbytes)
-    local index = 0;
+    local index = 1;
     self:reset();
     local pn = self.pn;
     for c in hashbytes:gmatch(".") do
         local num = string.byte(c);
         pn[index] = pn[index] + num;
         index = index + 1;
+        if index > WIDTH then
+            break;
+        end
     end
     return self;
 end
 
 function uint256:compare(b)
-    if type(b) == "table" then
-        for i = WIDTH, 1, -1 do 
-            if self.pn[i] < b.pn[i] then
-                return -1;
-            end
-            if self.pn[i] > b.pn[i] then
-                return 1;
-            end
+    b = uint256.cast(b);
+    for i = WIDTH, 1, -1 do 
+        if self.pn[i] < b.pn[i] then
+            return -1;
         end
-        return 0;
-    else
-        return self:compare(uint256:new(b))
+        if self.pn[i] > b.pn[i] then
+            return 1;
+        end
     end
+    return 0;
 end
 
 function uint256:bits()
@@ -151,7 +185,7 @@ end
 function uint256:__tostring()
     local ret = "0x"
     for i = WIDTH, 1 , -1 do 
-        ret = ret .. string.format("%02X",self.pn[i]);
+        ret = ret .. string.format("%02x",self.pn[i]);
     end
     return ret;
 end
@@ -201,19 +235,17 @@ function uint256:rshift(shift)
 end
 
 function uint256.__add(u,b)
-    if type(b) == "table" then
-        local ret = uint256:new();
-        local carry = 0;
-        local pn = u.pn;
-        for i = 1, WIDTH do 
-            local n = carry + pn[i] + b.pn[i];
-            ret.pn[i] = band(n, 0xff);
-            carry = rshift(n, 8); 
-        end
-        return ret;
-    else
-        return u + uint256:new(b);
+    u = uint256.cast(u)
+    b = uint256.cast(b);
+    local ret = uint256:new();
+    local carry = 0;
+    local pn = u.pn;
+    for i = 1, WIDTH do 
+        local n = carry + pn[i] + b.pn[i];
+        ret.pn[i] = band(n, 0xff);
+        carry = rshift(n, 8); 
     end
+    return ret;
 end
 
 function uint256:add(b)
@@ -238,13 +270,11 @@ function uint256.__unm(a)
 end
 
 function uint256.__sub(a,b)
-    if type(b) == "table" then
-        local c = uint256:new();
-        c = a + (-b);
-        return c;
-    else
-        return a - uint256:new(b);
-    end
+    a = uint256.cast(a)
+    b = uint256.cast(b)
+    local c = uint256:new();
+    c = a + (-b);
+    return c;
 end
 
 function uint256:sub(b)
@@ -253,25 +283,23 @@ function uint256:sub(b)
 end
 
 function uint256.__mul(a,b)
-    if type(b) == "table" then
-        local c = uint256:new();
-        local pn = c.pn;
+    a = uint256.cast(a)
+    b = uint256.cast(b)
+    local c = uint256:new();
+    local pn = c.pn;
 
-        for j = 1, WIDTH do
-            local carry = 0;
-            for i = 1, WIDTH do 
-                if i + j > WIDTH then
-                    break;
-                end
-                local n = carry + pn[i + j - 1] + a.pn[j] * b.pn[i];
-                pn[i + j - 1] = band(n, 0xff);
-                carry = rshift(n, 8); 
+    for j = 1, WIDTH do
+        local carry = 0;
+        for i = 1, WIDTH do 
+            if i + j > WIDTH then
+                break;
             end
+            local n = carry + pn[i + j - 1] + a.pn[j] * b.pn[i];
+            pn[i + j - 1] = band(n, 0xff);
+            carry = rshift(n, 8); 
         end
-        return c;
-    else
-        return a * uint256:new(b);
     end
+    return c;
 end
 
 function uint256:mul(b)
@@ -280,39 +308,37 @@ function uint256:mul(b)
 end
 
 function uint256.__div(a,b)
-    if type(b) == "table" then
-        local div = b;
-        local num = a;
-        local c = uint256:new()
-        local pn = c.pn;
+    a = uint256.cast(a)
+    b = uint256.cast(b)
+    local div = b;
+    local num = a;
+    local c = uint256:new()
+    local pn = c.pn;
 
-        local num_bits = num:bits();
-        local div_bits = div:bits();
+    local num_bits = num:bits();
+    local div_bits = div:bits();
 
-        if div_bits == 0 then
-            return {pn="Error: Division by ZERO"};
-        end
-
-        if div_bits > num_bits then
-            return c;
-        end
-
-        local shift = num_bits - div_bits;
-
-        div:lshift(shift);
-
-        while shift >= 0 do
-            if num >= div then
-                num:sub(div)
-                pn[modf(shift / 8) + 1] = band( bor(pn[modf(shift / 8) + 1], lshift(1, band(shift, 7))) , 0xff);             
-            end
-            div:rshift(1);
-            shift = shift - 1;
-        end
-        return c;
-    else
-        return a / uint256:new(b);
+    if div_bits == 0 then
+        return {pn="Error: Division by ZERO"};
     end
+
+    if div_bits > num_bits then
+        return c;
+    end
+
+    local shift = num_bits - div_bits;
+
+    div:lshift(shift);
+
+    while shift >= 0 do
+        if num >= div then
+            num:sub(div)
+            pn[modf(shift / 8) + 1] = band( bor(pn[modf(shift / 8) + 1], lshift(1, band(shift, 7))) , 0xff);             
+        end
+        div:rshift(1);
+        shift = shift - 1;
+    end
+    return c;
 end
 
 function uint256:mul(b)
@@ -332,8 +358,20 @@ function uint256.__le(a,b)
     return a:compare(b) <= 0;
 end
 
+function uint256.__bnot(a)
+    local b = uint256:new();
+    for i = 1, WIDTH do 
+        b.pn[i] = band(bnot(a.pn[i]), 0xff);
+    end
+    return b;
+end
+
+function uint256:bnot()
+    self.pn = uint256.__bnot(self).pn;
+    return self;
+end
+
 function uint256.test()
-    local num = uint256:new(1);
-    echo(uint256:new(2) >= uint256:new(1))
-    
+    local num = uint256:new(0xf):setCompact(0x1b0404cb);
+    echo( num:getCompact());
 end

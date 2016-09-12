@@ -4,9 +4,9 @@
 ]]
 
 NPL.load("(gl)script/Pcoin/sha256.lua");
-NPL.load("(gl)script/PCoin/Difficulty.lua");
+NPL.load("(gl)script/PCoin/uint256.lua");
 
-local Difficulty = commonlib.gettable("Mod.PCoin.Difficulty");
+local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Encoding = commonlib.gettable("System.Encoding");
 local sha256 = Encoding.sha256;
 
@@ -20,14 +20,26 @@ function Utility.bitcoinHash(data)
 	return sha256(sha256(data));
 end
 
-function Utility.blockWork = Difficulty.calDifficulty;
+function Utility.blockWork(bits)
+	local target, negative, overflow = uint256:new():setCompact(bits);
 
-function Utility.validateProofOfWork(hash, bits)
-	local target = Difficulty.createTarget(bits);
-	if  target.compare(Constants.maxTarget) > 0 then
-		return false;
+	if negative or overflow or not target then
+		return 0
 	end
 
-	local ourValue = Difficulty.createTarget(hash);
-	return ourValue:compare(target) <= 0;
+	local bntarget = uint256:new(target);
+	bntarget:bnot();
+	return  (bntarget / (target + 1)) + 1;
+end
+
+
+
+function Utility.test()
+	echo(sha256(sha256("","string"),"string"))
+	local hash = uint256:new():setHash(Utility.bitcoinHash(""));
+	echo(tostring(hash))
+
+	echo(tostring(Utility.blockWork(0x1d00ffff)))
+
+
 end
