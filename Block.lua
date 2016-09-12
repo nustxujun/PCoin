@@ -19,11 +19,11 @@ function Block.genesis()
 	{
 		header = 
 		{
-			version = "0.1",
-			preBlockHash = "0",
-			merkle = "0",
-			timestamp = 0,
-			nonce = "0";
+			version = 1000,
+			preBlockHash = "",
+			merkle = "",
+			timestamp = os.time(),
+			nonce = 0;
 			bits = 0;
 		}
 	}

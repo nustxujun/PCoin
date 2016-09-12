@@ -79,6 +79,15 @@ function BlockChain:getDifficulty(height)
 	return diff;
 end
 
+function BlockChain:fetchBlockDataByHeight(height)
+	local err, data = self.blocks:getBlockByHeight(height);
+	return data;
+end
+
+function BlockChain:fetchBlockDataByHash(hash)
+	local err, data = self.blocks:getBlockByHash(hash);
+	return data;
+end
 
 function BlockChain:fetchTransactionData(hash)
 	local err, data = self.transactions:get(hash)

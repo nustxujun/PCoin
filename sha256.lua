@@ -192,11 +192,16 @@ local function finalresult224 (H)
 end
 
 
-local function finalresult256 (H)
+local function finalresult256 (H, type)
   -- Produce the final hash value (big-endian):
-  return
-    str2hexa(num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..
-             num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4)..num2s(H[8], 4))
+  local hash = num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..
+                num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4)..num2s(H[8], 4)
+
+  if type == "string" then
+      return str2hexa(hash);
+  else
+      return hash;
+  end
 end
 
 
@@ -216,7 +221,7 @@ function Encoding.sha224(msg)
 end
 
 
-function Encoding.sha256 (msg)
+function Encoding.sha256 (msg, type)
   msg = preproc(msg, #msg)
   local H = initH256(HH)
 
@@ -225,6 +230,6 @@ function Encoding.sha256 (msg)
     digestblock(msg, i, H)
   end
 
-  return finalresult256(H)
+  return finalresult256(H,type)
 end
 

@@ -15,21 +15,6 @@ local ValidateBlock = commonlib.gettable("Mod.PCoin.ValidateBlock");
 
 local maxBlockScriptSigOps = Constants.maxBlockScriptSignatureOperations;
 
-local function workRequired(height)
-
-
-end
-
-local function isValidTimestamp(timestamp) 
-	
-
-	return true
-end
-
-local function isValidVersion(version)
-	return true
-end
-
 local function legacySigOpsCount(trans)
 	
 end
@@ -38,6 +23,48 @@ local function scriptHashSignatureOperationsCount(outputScript, inputScript)
 
 end
 
+local targetSpacingSeconds = 10 * 60; -- 10 min
+local targetTimeSpanSeconds = 2* 7 * 24 * 60 * 60 -- 2 week
+--The target number of blocks for 2 weeks of work (2016 blocks).
+local retargetingInterval = targetTimeSpanSeconds / targetSpacingSeconds
+-- Value used to define retargeting range constraint.
+local retargetingFactor = 4;
+
+local function actualTimeSpan(height, interval,chain)
+	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+	local preInterval = BlockHeader.create(chain:fetchBlockByHeight(height - interval).block.header);
+	return previous.timestamp - preInterval.timestamp;
+end
+
+
+-- then dynamic difficulty algorithm need int64 supported(uint256 calculation)
+local function workRequired(height, chain)
+	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+	return previous.bits;
+
+
+	-- if (height % retargetingInterval) == 0 then
+	-- 	local actual = actualTimeSpan(height, retargetingInterval, chain);
+	-- 	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+
+
+		
+	-- else
+	-- 	--previous block
+	-- 	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+	-- 	return previous.bits;
+	-- end
+end
+
+local twoHour = 2 * 60 * 60;
+local function isValidTimestamp(timestamp) 
+	local cur = os.time();
+	return timestamp <= (cur + twoHour) 
+end
+
+local function isValidVersion(version)
+	return version >= Constants.minVersion;
+end
 
 local function isDistinctTransactionSet(trans)
 	local hashs = {}
@@ -62,17 +89,17 @@ local function checkBlock(block)
 	local trans = block.transactions;
 
 	if #trans == 0 or #trans > Constants.maxTransactionsCount then
-		return "TransactionsLimits";
+		return "Error:TransactionsLimits";
 	end
 
 	local header = block.header;
 
 	if not isValidProofOfWork(header:hash(), header.bits) then
-		return "ProofOfWork";
+		return "Error:ProofOfWork";
 	end
 
 	if not isValidTimestamp(header.timestamp) then
-		return "TimstampLimits"
+		return "Error:TimstampLimits"
 	end
 
 	for k,v in pairs(trans) do

@@ -23,10 +23,11 @@ end
 function Utility.blockWork = Difficulty.calDifficulty;
 
 function Utility.validateProofOfWork(hash, bits)
-	local diff = Utility.blockWork(bits);
-	if diff > Constants.maxDifficulty then
+	local target = Difficulty.createTarget(bits);
+	if  target.compare(Constants.maxTarget) > 0 then
 		return false;
 	end
 
-	
+	local ourValue = Difficulty.createTarget(hash);
+	return ourValue:compare(target) <= 0;
 end
