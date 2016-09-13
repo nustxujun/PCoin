@@ -100,7 +100,7 @@ local function connectInput(tx,index, pretx , top)
 		return false 
 	end
 
-	if not ValidateTransaction.checkConsensus(preOutput.script,input, index, tx, --[[, FLAG]]) then
+	if not ValidateTransaction.checkConsensus(preOutput.script,input, index, tx --[[, FLAG]]) then
 		return false;
 	end
 	
@@ -112,6 +112,7 @@ local function checkFees(tx, valueIn)
 
 	if valueIn < valueOut then
 		return false;
+	end
 
 	local fee = valueIn - valueOut;
 	if fee > maxMoney then

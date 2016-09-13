@@ -128,3 +128,18 @@ function BlockChain:report()
 	self.organizer:report();
 	self.database:report()
 end
+
+
+
+--------------------------------------------------------------------------
+function BlockChain.test()
+	local settings = 
+	{
+		database = 
+		{
+			root = nil,
+			sync = true,
+		},
+	}
+
+end

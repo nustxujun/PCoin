@@ -8,6 +8,8 @@ NPL.load("(gl)script/PCoin/uint256.lua");
 local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 
+Constants.curVersion = 1000;
+
 Constants.maxTransactionsCount = 1000;
 Constants.maxTransactionsSize = 1000; -- inputs + outputs size;
 Constants.maxMoney = 0xffffffff; 

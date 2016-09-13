@@ -5,7 +5,9 @@
 
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/TransactionPool.lua");
+NPL.load("(gl)script/PCoin/Constants.lua");
 
+local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local bitcoinHash = Utility.bitcoinHash;
 
@@ -24,7 +26,7 @@ function Block.genesis()
 			merkle = "",
 			timestamp = os.time(),
 			nonce = 0;
-			bits = 0;
+			bits = Constants.maxTarget:getCompact();
 		}
 	}
 	return Block.create(genesis)
@@ -32,13 +34,9 @@ end
 ----------------------------------------
 
 -- HEADER 
-function BlockHeader.create(ver, prehash, merkle, time, nonce)
+function BlockHeader.create(data)
 	local h = BlockHeader:new();
-	if type(ver) == "table" then
-		h:fromData(ver);
-	else
-		h:fromData({version = ver, preBlockHash = prehash, merkle = merkle, timestamp = time, nonce = nonce});
-	end
+	h:fromData(data);
 	return h;
 end
 
@@ -59,6 +57,8 @@ function BlockHeader:fromData(data)
 	self.timestamp = data.timestamp;
 	self.nonce = data.nonce;
 	self.bits= data.bits;
+
+	return self;
 end
 
 function BlockHeader:toData()
@@ -191,3 +191,22 @@ end
 function BlockDetail:isValid()
 	return not self.invalid;
 end
+
+
+---------------------------------------------------------------------------------
+
+function BlockHeader.test()
+	echo("BlockHeader Test");
+	local data = {}
+	local header = BlockHeader.create(data);
+	header:hash();
+	echo(header:toData());
+end
+
+function Block.test()
+	echo("Block Test");
+	local genesis = Block.genesis();
+	echo(genesis:toData());
+	genesis:generateMerkleRoot();
+end
+

@@ -24,44 +24,7 @@ local function scriptHashSignatureOperationsCount(outputScript, inputScript)
 
 end
 
-local targetSpacingSeconds = 10 * 60; -- 10 min
-local targetTimeSpanSeconds = 2* 7 * 24 * 60 * 60 -- 2 week
---The target number of blocks for 2 weeks of work (2016 blocks).
-local retargetingInterval = targetTimeSpanSeconds / targetSpacingSeconds
--- Value used to define retargeting range constraint.
-local retargetingFactor = 4;
 
-local function actualTimeSpan(height, interval,chain)
-	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
-	local preInterval = BlockHeader.create(chain:fetchBlockByHeight(height - interval).block.header);
-	return previous.timestamp - preInterval.timestamp;
-end
-
-
-local function workRequired(height, chain)
-	if (height % retargetingInterval) == 0 then
-		local actual = actualTimeSpan(height, retargetingInterval, chain);
-		local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
-		local upper = targetTimeSpanSeconds * retargetingFactor;
-		local lower = targetTimeSpanSeconds / retargetingFactor;
-
-		local constrained = math.min(math.max(lower, actual), upper);
-
-		local retarget = uint256:new():setCompact(previous.bits);
-		retarget = retarget * constrained;
-		retarget = retarget / targetTimeSpanSeconds;
-
-		if retarget > Constants.maxTarget then
-			retarget = Constants.maxTarget;
-		end
-		
-		return retarget:getCompact();
-	else
-		--previous block
-		local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
-		return previous.bits;
-	end
-end
 
 local twoHour = 2 * 60 * 60;
 local function isValidTimestamp(timestamp) 
@@ -143,9 +106,9 @@ local function checkBlock(block)
 end
 
 
-local function acceptBlock(block, height)
+local function acceptBlock(block, height,chain)
 	local header = block.header;
-	if header.bits ~= workRequired(height) then
+	if header.bits ~= Utility.workRequired(height, chain) then
 		return "Error:IncorrectProofofWork";
 	end
 
@@ -317,7 +280,7 @@ function ValidateBlock.validate(block, index, fork, blockchain, orphanchain)
 	local ret = checkBlock(block);
 	if ret then return ret end;
 
-	ret = acceptBlock(block, height)
+	ret = acceptBlock(block, height, blockchain)
 	if ret then return ret end;
 
 	ret = connectBlock(block, fork, blockchain, orphanchain, index)

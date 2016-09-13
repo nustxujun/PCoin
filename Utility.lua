@@ -5,7 +5,9 @@
 
 NPL.load("(gl)script/Pcoin/sha256.lua");
 NPL.load("(gl)script/PCoin/uint256.lua");
-
+NPL.load("(gl)script/PCoin/Block.lua");
+	
+local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader");
 local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Encoding = commonlib.gettable("System.Encoding");
 local sha256 = Encoding.sha256;
@@ -27,19 +29,54 @@ function Utility.blockWork(bits)
 		return 0
 	end
 
-	local bntarget = uint256:new(target);
+	local bntarget = uint256:new(0);
 	bntarget:bnot();
 	return  (bntarget / (target + 1)) + 1;
+	--return Constants.maxTarget / target;
+end
+
+
+local targetSpacingSeconds = 10 * 60; -- 10 min
+local targetTimeSpanSeconds = 2* 7 * 24 * 60 * 60 -- 2 week
+--The target number of blocks for 2 weeks of work (2016 blocks).
+local retargetingInterval = targetTimeSpanSeconds / targetSpacingSeconds
+-- Value used to define retargeting range constraint.
+local retargetingFactor = 4;
+
+local function actualTimeSpan(height, interval,previous,chain)
+	local preInterval = BlockHeader.create(chain:fetchBlockByHeight(height - interval).block.header);
+	return previous.timestamp - preInterval.timestamp;
+end
+
+function Utility.workRequired(height, chain)
+	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+	if (height % retargetingInterval) == 0 then
+		local actual = actualTimeSpan(height, retargetingInterval,previous, chain);
+		local upper = targetTimeSpanSeconds * retargetingFactor;
+		local lower = targetTimeSpanSeconds / retargetingFactor;
+
+		local constrained = math.min(math.max(lower, actual), upper);
+
+		local retarget = uint256:new():setCompact(previous.bits);
+		retarget = retarget * constrained;
+		retarget = retarget / targetTimeSpanSeconds;
+
+		if retarget > Constants.maxTarget then
+			retarget = Constants.maxTarget;
+		end
+		
+		return retarget:getCompact();
+	else
+		return previous.bits;
+	end
 end
 
 
 
 function Utility.test()
-	echo(sha256(sha256("","string"),"string"))
 	local hash = uint256:new():setHash(Utility.bitcoinHash(""));
 	echo(tostring(hash))
 
 	echo(tostring(Utility.blockWork(0x1d00ffff)))
-
 
 end

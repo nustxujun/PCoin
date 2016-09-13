@@ -84,7 +84,6 @@ function uint256:setCompact(bits)
         end
     else
         size = size - 3;
-        local shift = size * 8;
         for i = 1, 3 do
             pn[size + i] = band(rshift(word, (i - 1) * 8), 0xff);
         end
@@ -136,14 +135,14 @@ end
 
 
 function uint256:setHash(hashbytes)
-    local index = 1;
+    local index = 0;
     self:reset();
     local pn = self.pn;
     for c in hashbytes:gmatch(".") do
         local num = string.byte(c);
-        pn[index] = pn[index] + num;
+        pn[WIDTH - index] = pn[WIDTH - index] + num;
         index = index + 1;
-        if index > WIDTH then
+        if index >= WIDTH then
             break;
         end
     end
