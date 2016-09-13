@@ -140,7 +140,7 @@ end
 local function isSpentDuplicate(tx, fork, chain)
 	local hash = tx:hash();
 
-	if not transactionExists(hash, fork, chain)
+	if not transactionExists(hash, fork, chain) then
 		return false;
 	end
 
@@ -226,7 +226,7 @@ local function validateInputs(tx, fork, chain, orphanchain, orphanIndex, totalSi
 			return {error="Error:OutputValueOverflow"};
 		end
 
-		if not ValidateTransaction.checkConsensus(preOutput.script, input, index, tx, --[[, FLAG]]) then
+		if not ValidateTransaction.checkConsensus(preOutput.script, input, index, tx --[[, FLAG]]) then
 			return {error="Error:InputScriptInvalidConsensus"};
 		end
 		

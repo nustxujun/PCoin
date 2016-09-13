@@ -6,7 +6,9 @@
 NPL.load("(gl)script/Pcoin/sha256.lua");
 NPL.load("(gl)script/PCoin/uint256.lua");
 NPL.load("(gl)script/PCoin/Block.lua");
-	
+NPL.load("(gl)script/PCoin/Constants.lua");
+
+local Constants = commonlib.gettable("Mod.PCoin.Constants");	
 local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader");
 local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Encoding = commonlib.gettable("System.Encoding");
@@ -19,7 +21,7 @@ function Utility.log(desc, ...)
 end
 
 function Utility.bitcoinHash(data)
-	return sha256(sha256(data));
+	return sha256(sha256(NPL.SerializeToSCode("",data)));
 end
 
 function Utility.blockWork(bits)
@@ -31,8 +33,8 @@ function Utility.blockWork(bits)
 
 	local bntarget = uint256:new(0);
 	bntarget:bnot();
-	return  (bntarget / (target + 1)) + 1;
-	--return Constants.maxTarget / target;
+	return (bntarget / (target + 1)) + 1;
+	--return (Constants.maxTarget / target):getCompact();
 end
 
 

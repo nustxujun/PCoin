@@ -37,14 +37,18 @@ function BlockChain:init(settings)
 	self.organizer = Organizer.create(self);
 end
 
+-- get block height by hash, default top
 function BlockChain:getHeight(hashvalue)
-	local blocks = self.blocks;
-	local top = #blocks;
-	for i = top, 1, -1 do
-		if blocks[i]:getHash() == hashvalue then
-			return i;
-		end
+	if not hashvalue then 
+		return self.blocks:getHeight();
 	end
+	local data = self:fetchBlockDataByHash(hashvalue);
+
+	if data then
+		return data.height;
+	else
+		return nil;
+	end;
 end
 
 function BlockChain:store(blockdetail)
@@ -63,17 +67,19 @@ function BlockChain:store(blockdetail)
 end
 
 -- get block work from HEIGHT to TOP
+-- default to return the whole chain difficulty
 function BlockChain:getDifficulty(height)
 	local blocks = self.database.blocks;
 	local top = blocks:getHeight();
 	if not top then
 		return 0;
 	end
+	height = height or 1;
 
 	local diff = 0;
 	for i = height, top do
 		local err, blockdata = blocks:getBlockByHeight(i);
-		diff = diff + blockwork(blockdata.header.bits);
+		diff = diff + blockwork(blockdata.block.header.bits);
 	end
 
 	return diff;
@@ -121,9 +127,9 @@ function BlockChain:pop(height --[[default: top]])
 end
 
 function BlockChain:report()
-	echo("BlockChain:")
+	echo("BlockChain report:")
 	local top = self:getHeight();
-	echo("	height:" .. top .. " difficulty:" .. self:getDifficulty(top));
+	echo("	height:" .. top .. " current target:" .. tostring(self:getDifficulty(top)));
 	
 	self.organizer:report();
 	self.database:report()
@@ -133,13 +139,22 @@ end
 
 --------------------------------------------------------------------------
 function BlockChain.test()
-	local settings = 
-	{
-		database = 
-		{
-			root = nil,
-			sync = true,
-		},
-	}
+	echo("BlockChain Test")
+	NPL.load("(gl)script/PCoin/Settings.lua");
+	local Settings = commonlib.gettable("Mod.PCoin.Settings");
+	NPL.load("(gl)script/PCoin/Block.lua");
+	local Block = commonlib.gettable("Mod.PCoin.Block");
+	local BlockDetail = commonlib.gettable("Mod.PCoin.BlockDetail");
 
+	echo("	create block chain")
+	local bc = BlockChain.create(Settings.BlockChain);
+	echo("	get top")
+	local height = bc:getHeight(Block.genesis().header:hash());
+	local bd = BlockDetail.create(Block.genesis());
+	echo("	store block")
+	bc:store(bd);
+
+	local difficulty = bc:getDifficulty();
+
+	bc:report();
 end

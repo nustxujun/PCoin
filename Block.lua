@@ -24,7 +24,7 @@ function Block.genesis()
 			version = 1000,
 			preBlockHash = "",
 			merkle = "",
-			timestamp = os.time(),
+			timestamp = 0,
 			nonce = 0;
 			bits = Constants.maxTarget:getCompact();
 		}
@@ -97,7 +97,7 @@ end
 function Block:fromData(data)
 	self.header = BlockHeader.create(data.header);
 	local trans = self.transactions
-	for k,v in pairs(data.transactions) do
+	for k,v in pairs(data.transactions or {}) do
 		trans[#trans + 1] = Transaction.create(v);
 	end
 end
@@ -165,7 +165,7 @@ function BlockDetail:getPreHash()
 end
 
 function BlockDetail:getHash()
-	return self.blocks.header:hash();
+	return self.block.header:hash();
 end
 
 function BlockDetail:getHeight()
@@ -177,11 +177,11 @@ function BlockDetail:setHeight(h)
 end
 
 function BlockDetail:setProcessed()
-	self.processed = true;
+	self.isProcessed = true;
 end
 
 function BlockDetail:processed()
-	return processed;
+	return self.isProcessed;
 end
 
 function BlockDetail:setInvalid()
@@ -195,15 +195,13 @@ end
 
 ---------------------------------------------------------------------------------
 
-function BlockHeader.test()
+function Block.test()
 	echo("BlockHeader Test");
 	local data = {}
 	local header = BlockHeader.create(data);
 	header:hash();
 	echo(header:toData());
-end
 
-function Block.test()
 	echo("Block Test");
 	local genesis = Block.genesis();
 	echo(genesis:toData());

@@ -13,20 +13,15 @@ local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 NPL.load("(gl)script/PCoin/Miner.lua");
 local Miner = commonlib.gettable("Mod.PCoin.Miner");
 
+NPL.load("(gl)script/PCoin/Settings.lua");
+local Settings = commonlib.gettable("Mod.PCoin.Settings");
+
 local blockchain = nil
 local transactionpool = nil
 
-local settings = 
-{
-    database = 
-    {
-        root = nil,
-        sync = true,
-    },
-}
 
 local function fullnode()
-    blockchain = BlockChain.create(settings);
+    blockchain = BlockChain.create(Settings.BlockChain);
     transactionpool = TransactionPool.create();
 
 
