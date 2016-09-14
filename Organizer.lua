@@ -6,7 +6,9 @@
 NPL.load("(gl)script/PCoin/OrphanPool.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/ValidateBlock.lua");
+NPL.load("(gl)script/PCoin/uint256.lua");
 
+local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local ValidateBlock = commonlib.gettable("Mod.PCoin.ValidateBlock");
 local validater = ValidateBlock.validate;
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
@@ -58,11 +60,11 @@ function Organizer:process(blockdetail)
 end
 
 function Organizer:replaceChain(fork, orphanchain)
-	local verify = self.verify;
-	local orphanwork = 0
+	local orphans = self.orphans
+	local orphanwork = uint256:new();
 	-- check orphanchain and get block work;
 	for k,v in ipairs(orphanchain) do
-		local ret = verify(v.block, fork, k,orphanchain);
+		local ret = self:verify(v.block, fork, k,orphanchain);
 		if ret then -- fail
 			self:clipOrphans(orphanchain, k);
 			break;	
@@ -73,7 +75,6 @@ function Organizer:replaceChain(fork, orphanchain)
 
 	local begin = fork + 1;
 	local mainwork = self.chain:getDifficulty(begin);
-
 	if orphanwork <= mainwork then
 		log("Insufficient work to reorganize at ["..begin.."]");
 		return 
@@ -87,7 +88,7 @@ function Organizer:replaceChain(fork, orphanchain)
 	local arrivalindex = fork + 1;
 	local orpahns = self.orpahns;
 	for k,v in ipairs(orphanchain) do
-		orphans.remove(v);
+		orphans:remove(v);
 
 		v:setHeight(arrivalindex);
 		arrivalindex = arrivalindex + 1;
@@ -108,7 +109,7 @@ function Organizer:verify(block, fork, index, orphanchain)
 	local ret = validater(block, index , fork, self.chain, orphanchain);
 
 	if ret then
-		Utility.log("failed to verify Block[height:%d, fork:%d]", fork + index, fork)
+		Utility.log("failed to verify Block[height:%d, fork:%d], reason: %s", fork + index, fork, ret)
 	end
 end
 

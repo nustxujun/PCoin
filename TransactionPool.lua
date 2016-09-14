@@ -26,7 +26,7 @@ end
 function TransactionPool:init(chain,capacity)
 	self.chain = chain;
 	self.capacity = capacity;
-	sellf.trans = Buffer:new();
+	self.trans = Buffer:new();
 end
 
 function TransactionPool:store(transaction)

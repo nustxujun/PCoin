@@ -51,7 +51,7 @@ local function actualTimeSpan(height, interval,previous,chain)
 end
 
 function Utility.workRequired(height, chain)
-	local previous = BlockHeader.create(chain:fetchBlockByHeight(height - 1).block.header);
+	local previous = BlockHeader.create(chain:fetchBlockDataByHeight(height - 1).block.header);
 	if (height % retargetingInterval) == 0 then
 		local actual = actualTimeSpan(height, retargetingInterval,previous, chain);
 		local upper = targetTimeSpanSeconds * retargetingFactor;

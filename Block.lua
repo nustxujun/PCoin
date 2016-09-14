@@ -4,7 +4,7 @@
 ]]
 
 NPL.load("(gl)script/PCoin/Utility.lua");
-NPL.load("(gl)script/PCoin/TransactionPool.lua");
+NPL.load("(gl)script/PCoin/Transaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
 
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
@@ -29,7 +29,11 @@ function Block.genesis()
 			bits = Constants.maxTarget:getCompact();
 		}
 	}
-	return Block.create(genesis)
+	local b = Block.create(genesis)
+
+	b:
+
+	return b;
 end
 ----------------------------------------
 

@@ -6,13 +6,21 @@
 NPL.load("(gl)script/PCoin/Input.lua");
 NPL.load("(gl)script/PCoin/Output.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
+NPL.load("(gl)script/PCoin/Constants.lua");
 
+local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local hashfunc = Utility.bitcoinHash;
 local Output = commonlib.gettable("Mod.PCoin.Output");
 local Input = commonlib.gettable("Mod.PCoin.Input");
 
 local Transaction = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Transaction"));
+
+function Transaction.fund()
+	local t = Transaction:new();
+	t.version = Constants.curVersion;
+	
+end
 
 function Transaction:ctor()
 	self.version = nil;

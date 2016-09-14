@@ -26,9 +26,9 @@ function Miner.proofofwork()
 
 		local block = Block:new();
 		block.header = curHeader;
+		block.transactions = {};
 
 		local blockdetail = BlockDetail.create(block);
-
 		blockchain:store(blockdetail);
 	end
 end
@@ -37,16 +37,18 @@ end
 
 function Miner.init(chain, pool)
 	blockchain = chain
-	transactionpool = pool
+	transactionpool = pool;
+
+	Miner.generateBlock();
 end
+
 
 
 function Miner.generateBlock()
 	Miner.stop();
 
-
 	local top = blockchain:getHeight();
-	local topblock = blockchain:fetchBlockData(top);
+	local topblock = blockchain:fetchBlockDataByHeight(top);
 	local header = BlockHeader.create(topblock.block.header);
 
 	local curTarget = Utility.workRequired(top + 1, blockchain);
@@ -67,10 +69,9 @@ function Miner.generateBlock()
 end
 
 function Miner.stop()
-	if timer then()
+	if timer then
 		timer:Change()
 		timer = nil;
 	end
 
-	curHeader = nil;
 end

@@ -6,7 +6,9 @@
 NPL.load("(gl)script/PCoin/Database.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/Organizer.lua");
+NPL.load("(gl)script/PCoin/uint256.lua");
 
+local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Organizer = commonlib.gettable("Mod.PCoin.Organizer");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local blockwork = Utility.blockWork;
@@ -76,7 +78,7 @@ function BlockChain:getDifficulty(height)
 	end
 	height = height or 1;
 
-	local diff = 0;
+	local diff = uint256:new();
 	for i = height, top do
 		local err, blockdata = blocks:getBlockByHeight(i);
 		diff = diff + blockwork(blockdata.block.header.bits);

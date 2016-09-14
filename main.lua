@@ -24,10 +24,23 @@ local function fullnode()
     blockchain = BlockChain.create(Settings.BlockChain);
     transactionpool = TransactionPool.create();
 
-
-    Protocol.init();    
     Network.init();
+    Protocol.init(blockchain, transactionpool);    
+
+    -- Network.connect("127.0.0.1","8099",
+    -- function (nid,ret)
+    --     if not ret then
+    --         echo("failed to connect 127")
+    --         return 
+    --     end
+    --     Protocol.version(nid, function (msg)
+    --         Protocol.block_header(msg.nid);
+    --     end);
+    -- end);
+
     Miner.init(blockchain, transactionpool);
+    
+
 end
 
 

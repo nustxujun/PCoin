@@ -69,7 +69,7 @@ function Database:push(blockdetail)
 	end
 
 
-	self.blocks:store(blockdetail:hash(), blockdetail:getHeight(), blockdetail.block:toData())
+	self.blocks:store(blockdetail:getHash(), blockdetail:getHeight(), blockdetail.block:toData())
 end
 
 function Database:pop()
