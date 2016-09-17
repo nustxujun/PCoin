@@ -40,15 +40,17 @@ function BlockChain:init(settings)
 	self.spends = self.database.spends;
 	self.historys = self.database.historys;
 	self.organizer = Organizer.create(self);
+
+	self.handler = {}
 end
 
 function BlockChain:setHandler(handler)
-	self.handler = handler;
+	self.handler[#self.handler + 1] = handler;
 end
 
 function BlockChain:handleEvent(...)
-	if self.handler then
-		return self.handler(...);
+	for k,v in pairs(self.handler) do
+		v(...);
 	end
 end
 
