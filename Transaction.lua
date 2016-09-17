@@ -7,7 +7,11 @@ NPL.load("(gl)script/PCoin/Input.lua");
 NPL.load("(gl)script/PCoin/Output.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
+NPL.load("(gl)script/PCoin/Script.lua");
+NPL.load("(gl)script/PCoin/Point.lua");
 
+local Point = commonlib.gettable("Mod.PCoin.Point");
+local Script = commonlib.gettable("Mod.PCoin.Script");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local hashfunc = Utility.bitcoinHash;
@@ -16,14 +20,8 @@ local Input = commonlib.gettable("Mod.PCoin.Input");
 
 local Transaction = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Transaction"));
 
-function Transaction.fund()
-	local t = Transaction:new();
-	t.version = Constants.curVersion;
-	
-end
-
 function Transaction:ctor()
-	self.version = nil;
+	self.version = Constants.curVersion;
 	self.inputs = {};
 	self.outputs= {};
 	self.locktime = nil;
@@ -51,8 +49,17 @@ function Transaction:fromData(data)
 	end
 end
 
-function Transaction:toData(data)
+function Transaction:toData()
+	local inputs = {}
+	for k,v in pairs(self.inputs) do
+		inputs[#inputs + 1] = v:toData();
+	end
+	local outputs = {}
+	for k,v in pairs(self.outputs) do
+		outputs[#outputs + 1] = v:toData();
+	end
 
+	return {version = self.version, locktime = self.locktime, inputs = inputs, outputs = outputs}
 end
 
 function Transaction:hash()
@@ -66,10 +73,31 @@ function Transaction:isCoinBase()
 	return false;
 end
 
+function Transaction:isOnePiece()
+	return #self.inputs == 1 and self.inputs[1].preOutput:isNull();
+end
+
 function Transaction:totalOutputValue()
 	local total = 0;
 	for k,v in pairs(self.outputs) do 
 		total = total + v.value;
 	end
 	return total;
+end
+
+function Transaction.ONEPIECE()
+	local tx = Transaction:new()
+	tx.version = Constants.curVersion;
+	
+	local input = Input:new()
+	input.script = Script.create("");
+	input.preOutput = Point:new()
+	tx.inputs[1] = input;
+
+	local output = Output:new()
+	output.value = Constants.maxMoney;
+	output.script = Script.create("8efd942d1c08ae97741f494c66dfcd3cb97be37dad45b475a68886d2a70f1e32"); 
+	tx.outputs[1] = output;
+
+	return tx
 end

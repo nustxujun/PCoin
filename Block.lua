@@ -6,7 +6,9 @@
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/Transaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
+NPL.load("(gl)script/PCoin/Transaction.lua");
 
+local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local bitcoinHash = Utility.bitcoinHash;
@@ -30,8 +32,8 @@ function Block.genesis()
 		}
 	}
 	local b = Block.create(genesis)
-
-	b:
+	b.transactions = {}
+	b.transactions[#b.transactions + 1] = Transaction.ONEPIECE();
 
 	return b;
 end
@@ -77,8 +79,8 @@ function BlockHeader:toData()
 	}
 end
 
-function BlockHeader:hash()
-	if not self.hashvalue then
+function BlockHeader:hash(refresh)
+	if refresh or not self.hashvalue then
 		self.hashvalue = bitcoinHash(self:toData());
 	end
 	return self.hashvalue
@@ -102,14 +104,16 @@ function Block:fromData(data)
 	self.header = BlockHeader.create(data.header);
 	local trans = self.transactions
 	for k,v in pairs(data.transactions or {}) do
-		trans[#trans + 1] = Transaction.create(v);
+		trans[#trans + 1] = v; -- only hash
 	end
 end
 
 function Block:toData()
 	local trans = {};
+	-- save hash to db
+	-- get tx data from txdb with the hashes
 	for k,v in pairs(self.transactions) do
-		trans[#trans + 1] = v:toData();
+		trans[#trans + 1] = v:hash();
 	end
 
 	return 
@@ -121,7 +125,7 @@ end
 
 local function buildMerkleTree(merkle)
 	if #merkle == 0 then
-		return
+		return "0";
 	end
 
 	while #merkle > 1 do
@@ -139,7 +143,7 @@ local function buildMerkleTree(merkle)
 		merkle = newMerkle;
 	end
 
-	return merkle;
+	return merkle[1];
 end
 
 function Block:generateMerkleRoot()

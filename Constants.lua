@@ -12,9 +12,9 @@ Constants.curVersion = 1000;
 
 Constants.maxTransactionsCount = 1000;
 Constants.maxTransactionsSize = 1000; -- inputs + outputs size;
-Constants.maxMoney = 0xffffffff; 
+Constants.maxMoney = 100; 
 Constants.maxBlockScriptSignatureOperations = 1000
-Constants.maxWorkBit = 0x1d00ffff;
+Constants.maxWorkBit = 0x1f00ffff;
 Constants.maxTarget = uint256:new():setCompact(Constants.maxWorkBit)
 
 Constants.minVersion = 1000;

@@ -18,7 +18,7 @@ end
 
 function Point:fromData(data)
 	self.hash = data.hash;
-	self.index = index;
+	self.index = data.index;
 end
 
 function Point:toData()

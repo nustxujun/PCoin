@@ -16,32 +16,29 @@ local Miner = commonlib.gettable("Mod.PCoin.Miner");
 NPL.load("(gl)script/PCoin/Settings.lua");
 local Settings = commonlib.gettable("Mod.PCoin.Settings");
 
-local blockchain = nil
-local transactionpool = nil
+NPL.load("(gl)script/PCoin/Wallet/Wallet.lua");
+local Wallet = commonlib.gettable("Mod.PCoin.Wallet.Wallet");
+
+
 
 
 local function fullnode()
-    blockchain = BlockChain.create(Settings.BlockChain);
-    transactionpool = TransactionPool.create();
+	local bc = BlockChain.create(Settings.BlockChain);
+    local tp = TransactionPool.create(bc, Settings.TransactionPool);
 
-    Network.init();
-    Protocol.init(blockchain, transactionpool);    
+    Miner.init(bc, tp);
+    Wallet.init(bc, tp , "Treasure");
 
-    -- Network.connect("127.0.0.1","8099",
-    -- function (nid,ret)
-    --     if not ret then
-    --         echo("failed to connect 127")
-    --         return 
-    --     end
-    --     Protocol.version(nid, function (msg)
-    --         Protocol.block_header(msg.nid);
-    --     end);
-    -- end);
 
-    Miner.init(blockchain, transactionpool);
+
+    Wallet.pay(50, Wallet.generateKeys(10));
+    Wallet.report();
     
+    Miner.generateBlock();
 
+    bc:report()
 end
 
 
 
+fullnode()

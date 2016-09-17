@@ -5,7 +5,6 @@
 
 NPL.load("(gl)script/Pcoin/sha256.lua");
 NPL.load("(gl)script/PCoin/uint256.lua");
-NPL.load("(gl)script/PCoin/Block.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
 
 local Constants = commonlib.gettable("Mod.PCoin.Constants");	
@@ -17,11 +16,16 @@ local sha256 = Encoding.sha256;
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 
 function Utility.log(desc, ...)
-    LOG.std(nil, "debug", "PCoin", desc, ...);
+
+    LOG.std(nil, "info", "PCoin", desc, ...);
 end
 
 function Utility.bitcoinHash(data)
 	return sha256(sha256(NPL.SerializeToSCode("",data)));
+end
+
+function Utility.HashBytesToString(hash)
+	return uint256:new():setHash(hash):tostring();
 end
 
 function Utility.blockWork(bits)

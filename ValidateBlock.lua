@@ -7,7 +7,9 @@ NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/ValidateTransaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
 NPL.load("(gl)script/PCoin/uint256.lua");
+NPL.load("(gl)script/PCoin/Transaction.lua");
 
+local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local ValidateTransaction = commonlib.gettable("Mod.PCoin.ValidateTransaction");
@@ -18,10 +20,12 @@ local maxBlockScriptSigOps = Constants.maxBlockScriptSignatureOperations;
 
 local function legacySigOpsCount(trans)
 	
+
+	return 0;
 end
 
 local function scriptHashSignatureOperationsCount(outputScript, inputScript)
-
+	return 0;
 end
 
 
@@ -41,12 +45,13 @@ local function isDistinctTransactionSet(trans)
 	for k,v in pairs(trans) do
 		hashs[#hashs + 1] = v:hash();
 	end
-	hashs:sort(
+	
+	table.sort(hashs,
 		function (a, b) 
 			return a < b;
 		end);
 		
-	local count = #hash - 1;
+	local count = #hashs - 1;
 	for i = 1 , count do
 		if hashs[i] == hashs[i + 1] then
 			return false
@@ -57,7 +62,7 @@ end
 
 local function isValidProofOfWork(hash, bits)
 	local target = uint256:new():setCompact(bits);
-	if not target or  target > Constants.maxTarget then
+	if target > Constants.maxTarget then
 		return false;
 	end
 
@@ -68,7 +73,7 @@ end
 local function checkBlock(block)
 	local trans = block.transactions;
 
-	if #trans == 0 or #trans > Constants.maxTransactionsCount then
+	if --[[#trans == 0 or]] #trans > Constants.maxTransactionsCount then
 		return "Error:TransactionsLimits";
 	end
 
@@ -145,7 +150,7 @@ local function isSpentDuplicate(tx, fork, chain)
 	end
 
 	for index,output in pairs(tx.outputs) do
-		if not isOutputSpent({hash, index}) then 
+		if not isOutputSpent({hash, index},fork, chain) then 
 			return false;
 		end
 	end
@@ -154,7 +159,7 @@ local function isSpentDuplicate(tx, fork, chain)
 end
 
 local function fetchOrphanTransaction(hash, fork, orphanchain, orphanIndex)
-	for index , orphan in pairs(orphanchain) do
+	for index , orphan in orphanchain:iterator() do
 		for _, tx in pairs(orphan.block.transactions) do
 			if tx:hash() == hash then
 				return tx, fork + index;
@@ -178,7 +183,7 @@ local function fetchTransaction(hash, fork, chain, orphanchain, orphanIndex)
 end
 
 local function orphanIsSpent(outpoint, skipTx, skipInput, orphanchain, orphanIndex)
-	for index, orphan in pairs(orphanchain) do
+	for index, orphan in orphanchain:iterator() do
 		for indextx, tx in pairs(orphan.block.transactions) do
 			for indexin, input in pairs(tx.inputs) do
 				-- skip if is self
@@ -193,7 +198,7 @@ local function orphanIsSpent(outpoint, skipTx, skipInput, orphanchain, orphanInd
 	return false;
 end
 
-local function isOutputSpentIncludeOrphans(outpoint,indexTx, indexInput, fork, chain, orphanchain)
+local function isOutputSpentIncludeOrphans(outpoint,indexTx, indexInput, fork, chain, orphanchain,orphanIndex)
 	if isOutputSpent(outpoint, fork, chain) then
 		return true;
 	end
@@ -201,16 +206,16 @@ local function isOutputSpentIncludeOrphans(outpoint,indexTx, indexInput, fork, c
 	return orphanIsSpent(outpoint, indexTx, indexInput,orphanchain, orphanIndex) 
 end
 
-local function validateInputs(tx, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn)
+local function validateInputs(tx, indextx, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn)
 	for index, input in pairs(tx.inputs) do
 		local preOutputPt = input.preOutput;
 
-		local preOuputTx , preHeight = fetchTransaction(preOutputPt.hash, fork, chain, orphanchain, orphanIndex);
+		local preOutputTx , preHeight = fetchTransaction(preOutputPt.hash, fork, chain, orphanchain, orphanIndex);
 		if not preOutputTx then
 			return {error="Error:FetchingOutputTransactionFailed"};
 		end
 
-		local preOutput = preOuputTx.outputs[preOutputPt.index];
+		local preOutput = preOutputTx.outputs[preOutputPt.index];
 		local count = scriptHashSignatureOperationsCount(preOutput.script, input.script);
 		if not count then
 			return {error="Error:InvalidEvalScript"};
@@ -221,16 +226,16 @@ local function validateInputs(tx, fork, chain, orphanchain, orphanIndex, totalSi
 			return {error="Error:TooManySigs"};
 		end
 
-		local outputValue = preOuput.value;
+		local outputValue = preOutput.value;
 		if outputValue > Constants.maxMoney then 
 			return {error="Error:OutputValueOverflow"};
 		end
 
-		if not ValidateTransaction.checkConsensus(preOutput.script, input, index, tx --[[, FLAG]]) then
+		if not ValidateTransaction.checkConsensus(preOutput.script, input.script, index, tx --[[, FLAG]]) then
 			return {error="Error:InputScriptInvalidConsensus"};
 		end
 		
-		if isOutputSpentIncludeOrphans(preOutputPt, fork, chain,orphanchain, orphanIndex) then
+		if isOutputSpentIncludeOrphans(preOutputPt,indextx,index, fork, chain,orphanchain, orphanIndex) then
 			return {error="Error:DoubleSpend(IncludeInOrphanChain)"}
 		end
 
@@ -246,7 +251,7 @@ end
 local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 	local fees = 0;
 	local totalSigops = 0;
-	
+	local valueIn = 0
 	for index,tx in pairs(block.transactions) do
 		if isSpentDuplicate(tx, fork, chain) then 
 			return "Error:DuplicateOrSpent";
@@ -257,11 +262,12 @@ local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 			return "Error:TooManySigs"
 		end
 
-		local ret = validateInputs(tx, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn );
+		local ret = validateInputs(tx,index, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn );
 		if ret.error then
 			return ret.error;
 		else
 			totalSigops = ret.totalSigops;
+			valueIn = ret.valueIn;
 		end
 
 		local valueOut = tx:totalOutputValue();
@@ -285,7 +291,6 @@ function ValidateBlock.validate(block, index, fork, blockchain, orphanchain)
 
 	ret = connectBlock(block, fork, blockchain, orphanchain, index)
 	if ret then return ret end;
-	
 
 	return ;
 end

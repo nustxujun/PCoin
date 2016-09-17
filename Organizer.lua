@@ -50,20 +50,22 @@ end
 
 function Organizer:process(blockdetail)
 	local orphanchain = self.orphans:trace(blockdetail);
-	local hash = orphanchain[1]:getPreHash();
-
+	local hash = orphanchain:front():getPreHash();
 	local height = self.chain:getHeight(hash);
 	if height then
 		self:replaceChain(height , orphanchain)
+	else
+		log("[Organizer]process: cannot find previous block , hash:", Utility.HashBytesToString(hash));
 	end
 	blockdetail:setProcessed()
 end
 
 function Organizer:replaceChain(fork, orphanchain)
+
 	local orphans = self.orphans
 	local orphanwork = uint256:new();
 	-- check orphanchain and get block work;
-	for k,v in ipairs(orphanchain) do
+	for k,v in orphanchain:iterator() do
 		local ret = self:verify(v.block, fork, k,orphanchain);
 		if ret then -- fail
 			self:clipOrphans(orphanchain, k);
@@ -72,11 +74,15 @@ function Organizer:replaceChain(fork, orphanchain)
 		
 		orphanwork = orphanwork + blockwork(v.block.header.bits);
 	end
+	if orphanchain:size() == 0 then	
+		log("no block store in chain")
+		return
+	end
 
 	local begin = fork + 1;
 	local mainwork = self.chain:getDifficulty(begin);
 	if orphanwork <= mainwork then
-		log("Insufficient work to reorganize at ["..begin.."]");
+		log("Insufficient work to reorganize, orphans work: %s, need: %s",orphanwork:tostring(), mainwork:tostring() );
 		return 
 	end
 
@@ -87,7 +93,7 @@ function Organizer:replaceChain(fork, orphanchain)
 	--then add the valid orphans to main chain
 	local arrivalindex = fork + 1;
 	local orpahns = self.orpahns;
-	for k,v in ipairs(orphanchain) do
+	for k,v in orphanchain:iterator() do
 		orphans:remove(v);
 
 		v:setHeight(arrivalindex);
@@ -107,24 +113,25 @@ end
 
 function Organizer:verify(block, fork, index, orphanchain)
 	local ret = validater(block, index , fork, self.chain, orphanchain);
-
 	if ret then
-		Utility.log("failed to verify Block[height:%d, fork:%d], reason: %s", fork + index, fork, ret)
+		log("failed to verify Block(fork:%d, height:%d), reason: %s", fork, fork + index, ret)
 	end
+	return ret;
 end
 
 --remove all blocks above the invalid one(included)
 function Organizer:clipOrphans(chain, index)
 	local orplans = self.orphans;
-	local count = #chain;
+	local count = chain:size();
 	for i = index, count do
-		local b = chain[i];
+		local b = chain:get(i);
 		b:setInvalid()
 		b:setProcessed();
 	
 		orplans:remove(b);
-		chain[index] = nil;
 	end 
+	chain:erase(index, count);
+	log("[Organizer] clipOrphans: cliped count: %d, remain: %d", count - index + 1, chain:size())
 end
 
 function Organizer:report()

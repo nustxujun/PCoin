@@ -3,6 +3,10 @@
 	local Script = commonlib.gettable("Mod.PCoin.Script");
 ]]
 
+NPL.load("(gl)script/Pcoin/sha256.lua");
+local Encoding = commonlib.gettable("System.Encoding");
+local hash = Encoding.sha256;
+
 local Script = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Script"));
 
 function Script:ctor()
@@ -23,6 +27,7 @@ function Script:toData()
 	return self.operations;
 end
 
-function Script:parse()
+--static 
+function Script.verify(outscript, inscript)
+	return outscript.operations == hash(inscript.operations,"string")
 end
-

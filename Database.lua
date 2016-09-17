@@ -7,26 +7,28 @@ NPL.load("(gl)script/PCoin/Block.lua");
 NPL.load("(gl)script/PCoin/BlockDatabase.lua");
 NPL.load("(gl)script/PCoin/TransactionDatabase.lua");
 NPL.load("(gl)script/PCoin/SpendDatabase.lua");
+NPL.load("(gl)script/PCoin/HistoryDatabase.lua");
 NPL.load("(gl)script/ide/System/Database/TableDatabase.lua");
+NPL.load("(gl)script/PCoin/Wallet/PaymentAddress.lua");
+NPL.load("(gl)script/PCoin/Utility.lua");
 
+local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local Block = commonlib.gettable("Mod.PCoin.Block");
-local BlockDetail = commonlib.gettable("Mod.PCoin.BlockDetail");
 local TableDatabase = commonlib.gettable("System.Database.TableDatabase");
 local BlockDatabase = commonlib.gettable("Mod.PCoin.BlockDatabase");
 local SpendDatabase = commonlib.gettable("Mod.PCoin.SpendDatabase");
+local HistoryDatabase = commonlib.gettable("Mod.PCoin.HistoryDatabase");
+local PaymentAddress = commonlib.gettable("Mod.PCoin.Wallet.PaymentAddress");
 
 local TransactionDatabase = commonlib.gettable("Mod.PCoin.TransactionDatabase");
 
 local Database = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Database"));
 
-Database.blocks = nil;
-Database.transactions = nil;
-Database.spends = nil;
-
 function Database:ctor()
 	self.blocks = nil;
 	self.transactions = nil;
 	self.spends = nil;
+	self.historys = nil;
 end
 
 function Database.create(settings)
@@ -42,6 +44,16 @@ function Database:init(root, sync)
 	self.blocks = BlockDatabase:new():init(self.db);
 	self.transactions = TransactionDatabase:new():init(self.db);
 	self.spends = SpendDatabase:new():init(self.db);
+	self.historys = HistoryDatabase:new():init(self.db);
+
+
+	if self.blocks:getHeight() == 0 then
+		Utility.log("[Database]generate genesis block");
+		local genesis = Block.genesis();
+		self:push(genesis, 1);
+	end
+
+
 end
 
 local function pushInputs(hash, inputs, db)
@@ -53,39 +65,78 @@ local function pushInputs(hash, inputs, db)
 
 end
 
-function Database:push(blockdetail)
-	local txdb = self.transactions;
-	local spdb = self.spends;
-	local height = blockdetail:getHeight();
+local function pushOutput(hash, outputs, db, height )
+	for k,v in pairs(outputs) do
+		local outpoint = {hash = hash, index = k}
+		local address = PaymentAddress.create(v.script);
 
-	for index,t in pairs(blockdetail.block.transactions) do
+		db:store(address:hash(), outpoint, v.value, height );
+	end
+end
+
+function Database:push(block, height )
+	local txdb = self.transactions;
+	for index,t in pairs(block.transactions) do
 		local hash = t:hash();
 
+		pushInputs(hash, t.inputs, self.spends);
+		pushOutput(hash, t.outputs, self.historys,height);
 
 
-
-		
 		txdb:store( hash, height, index, t:toData());
 	end
 
-
-	self.blocks:store(blockdetail:getHash(), blockdetail:getHeight(), blockdetail.block:toData())
+	self.blocks:store(block.header:hash(), height, block:toData())
 end
+
+
+
+
+
+
+local function popInputs(inputs, db)
+	for k,v in pairs(inputs) do
+		db:remove(v.preOutput);
+	end
+end
+
+local function popOutput(outputs, db )
+	for k,v in pairs(outputs) do
+		local address = PaymentAddress.create(v.script);
+		historys:remove(address:hash());
+	end
+end
+
 
 function Database:pop()
 	local blocks = self.blocks;
+	local txdb = self.transactions;
 	local h = blocks:getHeight();
 	local err,blockdata = blocks:getBlockByHeight(h);
 	local block = Block.create(blockdata.block)
-	local blockdetail = BlockDetail.create(block);
-	blockdetail:setHeight(blockdata.height);
+	local txs = block.transactions
+	for i, hash in pairs(txs) do 
+		local data = txdb:get(hash);
+		local t = Transaction:new();
+		if data then
+			t:fromData(data);
+			popInputs(t.inputs, self.spends);
+			popOutputs(t.outputs, self.historys);
+			txs[i] = t;
+		else
+			Utility.log("[Database]pop: failed to find transaction with hash %s in block(hash %s)", 
+						Utility.HashBytesToString(hash),Utility.HashBytesToString(block.header:hash()));
+		end
 
+	end
 
 	blocks:unlink(h);
 
-	return blockdetail;
+
+	return block;
 end
 
 function Database:report()
-
+	echo("Database report:")
+	self.spends:report()
 end

@@ -3,6 +3,9 @@
 	local OrphanPool = commonlib.gettable("Mod.PCoin.OrphanPool");
 ]]
 
+NPL.load("(gl)script/PCoin/Buffer.lua");
+local Buffer = commonlib.gettable("Mod.PCoin.Buffer");
+
 local OrphanPool = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.OrphanPool"));
 
 function OrphanPool:ctor()
@@ -10,8 +13,8 @@ function OrphanPool:ctor()
 end
 
 function OrphanPool:trace(blockdetail)
-	local trace = {};
-	trace[1] = blockdetail;
+	local trace = Buffer:new();
+	trace:push_back(blockdetail);
 
 	local pool = self.pool;
 	local hash = blockdetail:getPreHash();
@@ -19,7 +22,7 @@ function OrphanPool:trace(blockdetail)
 	while(b) do
 		b = pool[hash];
 		if (b) then
-			trace[#trace + 1] = b;
+			trace:push_back( b);
 			hash = b:getPreHash();
 		end
 	end

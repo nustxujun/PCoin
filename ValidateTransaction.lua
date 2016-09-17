@@ -11,7 +11,9 @@ desc:
 ]]
 
 NPL.load("(gl)script/PCoin/Constants.lua");
+NPL.load("(gl)script/PCoin/Script.lua");
 
+local Script = commonlib.gettable("Mod.PCoin.Script");
 local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local ValidateTransaction = commonlib.gettable("Mod.PCoin.ValidateTransaction");
@@ -23,12 +25,17 @@ local function checkCoinbaseScript(script)
 	
 end
 
-function ValidateTransaction.checkConsensus(preOutScript,input,index, tx, flag)
+function ValidateTransaction.checkConsensus(preOutScript,inputScript,index, tx, flag)
+	return Script.verify(preOutScript, inputScript)
 end
 
 local function basicChecks(tx, pool)
 	local ret = ValidateTransaction.checkTransaction(tx)
 	if ret then return ret end;
+
+	if tx:isOnePiece() then
+		return "Error:MustNotBeOnePiece"; 
+	end
 
 	local hash = tx:hash();
 	if pool:get(hash) then
@@ -41,7 +48,6 @@ end
 -- check if the same previous output is existed in pool  
 local function isSpentInPool(tx, txpool)
 	local trans = txpool.trans;
-
 	--compare hash value
 	local function isSpentByTx(preOutput, txInPool)
 		for k,v in pairs(txInPool.inputs) do 
@@ -79,7 +85,7 @@ local function getPreTx(hash, pool, chain)
 	if not data then
 		pretx = pool:get(hash)
 	else
-		pretx = Transaction.create(data.transation);
+		pretx = Transaction.create(data.transaction);
 	end
 	return pretx;
 end
@@ -87,7 +93,7 @@ end
 -- get usable input value from previous output
 local function connectInput(tx,index, pretx , top)
 	local input = tx.inputs[index];
-	local preOutputPt = ipnut.preOutput;
+	local preOutputPt = input.preOutput;
 
 	if preOutputPt.index > #pretx.outputs then
 		return false;
@@ -100,7 +106,7 @@ local function connectInput(tx,index, pretx , top)
 		return false 
 	end
 
-	if not ValidateTransaction.checkConsensus(preOutput.script,input, index, tx --[[, FLAG]]) then
+	if not ValidateTransaction.checkConsensus(preOutput.script,input.script, index, tx --[[, FLAG]]) then
 		return false;
 	end
 	
@@ -109,7 +115,6 @@ end
 
 local function checkFees(tx, valueIn)
 	local valueOut = tx:totalOutputValue();
-
 	if valueIn < valueOut then
 		return false;
 	end
@@ -119,6 +124,7 @@ local function checkFees(tx, valueIn)
 		return false	
 	end
 
+	return true;
 end
 
 local function checkPreTxDuplicate(transaction, pool, chain)
@@ -129,7 +135,7 @@ local function checkPreTxDuplicate(transaction, pool, chain)
 			return "Error:InputNotFound";
 		end
 
-		local value = connectInput(pretx, index, chain:getHeight())
+		local value = connectInput(transaction, index, pretx, chain:getHeight())
 		if value == false then 
 			return "Error:ValidateInputsFailed";
 		end
@@ -152,10 +158,9 @@ local function checkDuplicate(transaction, pool, chain)
 		return "Error:TransactionExistedInDatabase";
 	end
 
-	if not isSpentInPool(transaction, pool) then
+	if isSpentInPool(transaction, pool) then
 		return "Error:DoubleSpending";
 	end
-
 	return checkPreTxDuplicate(transaction, pool, chain)
 end
 
@@ -163,7 +168,7 @@ function ValidateTransaction.validate(transaction, txpool,chain)
 	local ret = basicChecks(transaction, txpool);
 	if ret then return ret end;
 
-	ret = checkDuplicate(transaction, pool, chain)
+	ret = checkDuplicate(transaction, txpool, chain)
 	if ret then return ret end;
 
 	return;
@@ -172,7 +177,7 @@ end
 function ValidateTransaction.checkTransaction(transaction)
 	local inputs = transaction.inputs;
 	local outputs = transaction.outputs;
-	if #ipnuts == 0 or  #outputs == 0 or
+	if #inputs == 0 or  #outputs == 0 or
 	   #inputs + #outputs > Constants.maxTransactionsSize then
 		return "Error:InputAndOutputLimits";
 	end
@@ -189,11 +194,12 @@ function ValidateTransaction.checkTransaction(transaction)
 			return "Error:OutputTotalValueOverflow";
 		end
 	end
-
-	if transaction:isCoinbase() then
+	if transaction:isCoinBase() then
 		if (not checkCoinbaseScript(transection.inputs[1].script)) then
 			return "Error:InvalidCoinbaseScript";
 		end
+	elseif transaction:isOnePiece() then
+		return
 	else
 		for k,v in pairs(inputs) do
 			if v.preOutput:isNull() then

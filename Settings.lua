@@ -10,9 +10,16 @@ Settings.BlockChain =
 {
     database = 
     {
-        root = nil, -- database path
+        root = "database/pcoin/", -- database path
         sync = true, 
     },
+
+}
+
+Settings.TransactionPool = 
+{
+    capacity = 1000,
+
 
 }
 

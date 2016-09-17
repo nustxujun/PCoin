@@ -10,7 +10,6 @@ use:
     NPL.load("(gl)script/Pcoin/sha256.lua");
     local Encoding = commonlib.gettable("System.Encoding");
 
-    Encoding.sha224("The quick brown fox jumps over the lazy dog")
     Encoding.sha256("The quick brown fox jumps over the lazy dog")
     
 ]]
@@ -184,11 +183,15 @@ local function digestblock (msg, i, H)
 end
 
 
-local function finalresult224 (H)
+local function finalresult224 (H, type)
   -- Produce the final hash value (big-endian):
-  return
-    str2hexa(num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..
-             num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4))
+  local hash = num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..
+               num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4)
+  if type == "string" then
+      return str2hexa(hash);
+  else
+      return hash;
+  end
 end
 
 
@@ -208,7 +211,7 @@ end
 ----------------------------------------------------------------------
 local HH = {}    -- to reuse
 
-function Encoding.sha224(msg)
+function Encoding.sha224(msg, type)
   msg = preproc(msg, #msg)
   local H = initH224(HH)
 
@@ -217,7 +220,7 @@ function Encoding.sha224(msg)
     digestblock(msg, i, H)
   end
 
-  return finalresult224(H)
+  return finalresult224(H,type)
 end
 
 

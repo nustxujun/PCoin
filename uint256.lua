@@ -134,12 +134,13 @@ function uint256:getCompact(negative)
 end
 
 
-function uint256:setHash(hashbytes)
+function uint256:setHash(hashbytes, len)
     local index = 0;
     self:reset();
     local pn = self.pn;
-    for c in hashbytes:gmatch(".") do
-        local num = string.byte(c);
+    len = len or 32;
+    for i = 1 ,len do 
+        local num = hashbytes:byte(i);
         pn[WIDTH - index] = pn[WIDTH - index] + num;
         index = index + 1;
         if index >= WIDTH then
@@ -182,7 +183,7 @@ function uint256:tostring()
 end
 
 function uint256:__tostring()
-    local ret = "0x"
+    local ret = ""
     for i = WIDTH, 1 , -1 do 
         ret = ret .. string.format("%02x",self.pn[i]);
     end

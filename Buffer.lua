@@ -7,8 +7,8 @@ local Buffer = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Buffer"));
 
 function Buffer:ctor()
 	self.data = {};
-	self.first = 0;
-	self.last = -1;
+	self.first = 1;
+	self.last = 0;
 end
 
 function Buffer:push_back(elem)
@@ -23,6 +23,7 @@ function Buffer:pop_front()
 	local e = self.data[self.first];
 	self.data[self.first] = nil;
 	self.first = self.first + 1 ;
+	return e;
 end
 
 function Buffer:front()
@@ -46,13 +47,18 @@ function Buffer:get(index)
 	return self.data[self.first + index - 1];
 end
 
-function Buffer:erase(index)
+function Buffer:erase(index, last)
+	last = last or index;
+	local size = last - index + 1
+	if last > self:size() then
+		return
+	end
+
 	local data = self.data;
 	for i = self.first + index - 1, self.last - 1 do
-		data[i] = data[i + 1];
+		data[i] = data[i + size];
 	end
-	data[self.last] = nil;
-	self.last = self.last - 1;
+	self.last = self.last - size;
 end
 
 function Buffer:size()

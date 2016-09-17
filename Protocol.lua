@@ -12,10 +12,10 @@ local Network = commonlib.gettable("Mod.PCoin.Network");
 
 local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 
---type
-REQUEST_T = 1,
-RESPONSE_T = 2,
-NOTIFY_T = 3,
+--protocol
+REQUEST_T = 1;
+RESPONSE_T = 2;
+NOTIFY_T = 3;
 
 local protocols = 
 {
@@ -25,7 +25,8 @@ local protocols =
 	"block",
 	"block_header",
 	"transaction",
-	"",
+
+
 }
 
 local protocolmap = {}
@@ -48,11 +49,14 @@ local function getSeq()
 	return seqNum
 end
 
+--function------------------------------------------------------------------------------
+
 local blockchain ;
 local transactionpool;
 function Protocol.init(chain, pool)
 	blockchain = chain;
 	transactionpool = pool;
+
 end
 
 
@@ -115,6 +119,10 @@ function Protocol.block_header(nid,desired)
 
 		end)
 end
+
+
+
+
 
 --response------------------------------------------------------------------------------
 local function response(nid, seq, msg)
@@ -238,6 +246,18 @@ function (msg)
 		end
 	end
 end
+
+
+
+
+--broadcast-------------------------------------------------------------------------------------
+function Protocol.nofityNewBlock(block)
+	
+
+end
+
+
+
 
 
 Network.register(Protocol.receive);

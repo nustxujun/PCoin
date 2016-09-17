@@ -3,12 +3,9 @@
 	local BlockDatabase = commonlib.gettable("Mod.PCoin.BlockDatabase");
 ]]
 NPL.load("(gl)script/ide/System/Database/TableDatabase.lua");
-NPL.load("(gl)script/PCoin/Block.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
-local Block = commonlib.gettable("Mod.PCoin.Block");
-local BlockDetail = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockDetail"));
 local TableDatabase = commonlib.gettable("System.Database.TableDatabase");
 local BlockDatabase = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockDatabase"));
 
@@ -24,13 +21,9 @@ function BlockDatabase:init(db)
 	local err, data = self.db[Collection]:findOne({header=Collection})
 	if data then
 		self.height = data.height 
-		Utility.log("blockchain height in database: " .. self.height);
+		Utility.log("[BlockDatabase]blockchain height: " .. self.height);
 	else
-		Utility.log("generate genesis block");
-		self:setHeight(1);
-		local genesis = Block.genesis();
 
-		self:store(genesis.header:hash(), 1, genesis:toData())
 	end
 	return self;
 end
@@ -54,6 +47,7 @@ end
 
 function BlockDatabase:store(hash, height, blockData )
 	self.db[Collection]:insertOne({height = height}, {height = height, hash = hash, block = blockData} )
+	self:setHeight(height);
 end
 
 -- unlink blocks above the height from database(not removing)

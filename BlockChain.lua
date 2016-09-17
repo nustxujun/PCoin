@@ -23,6 +23,8 @@ function BlockChain:ctor()
 	self.transactions = nil;
 	self.spends = nil;
 	self.organizer = nil;
+
+	self.handler = nil;
 end
 
 function BlockChain.create(settings)
@@ -36,7 +38,18 @@ function BlockChain:init(settings)
 	self.blocks = self.database.blocks; -- BlockDatabase;
 	self.transactions = self.database.transactions; -- TransactionDatabase;
 	self.spends = self.database.spends;
+	self.historys = self.database.historys;
 	self.organizer = Organizer.create(self);
+end
+
+function BlockChain:setHandler(handler)
+	self.handler = handler;
+end
+
+function BlockChain:handleEvent(...)
+	if self.handler then
+		return self.handler(...);
+	end
 end
 
 -- get block height by hash, default top
@@ -61,6 +74,7 @@ function BlockChain:store(blockdetail)
 	end
 
 	if not self.organizer:add(blockdetail) then
+	
 		return false;
 	end
 
@@ -89,21 +103,41 @@ end
 
 function BlockChain:fetchBlockDataByHeight(height)
 	local err, data = self.blocks:getBlockByHeight(height);
+	if err then
+		Utility.log("[BlockChain]fetchBlockDataByHeight failed, height: %d", height)
+	end
 	return data;
 end
 
 function BlockChain:fetchBlockDataByHash(hash)
 	local err, data = self.blocks:getBlockByHash(hash);
+	if err then
+		Utility.log("[BlockChain]fetchBlockDataByHash failed, hash: %s", uint256:new():setHash(hash):tostring())
+	end
 	return data;
 end
 
 function BlockChain:fetchTransactionData(hash)
 	local err, data = self.transactions:get(hash)
+	if err then
+		Utility.log("[BlockChain]fetchTransactionData failed, hash: %d", uint256:new():setHash(hash):tostring())
+	end
 	return data;
 end
 
 function BlockChain:fetchSpendData(outpoint)
 	local err, data = self.spends:get(outpoint);
+	if err then
+		Utility.log("[BlockChain]fetchSpendData failed, hash: %s, index: %d",  uint256:new():setHash(output.hash):tostring(), output.index)
+	end
+	return data;
+end
+
+function BlockChain:fetchHistoryData(hash)
+	local err, data = self.historys:get(hash)
+	if err then
+		Utility.log("[BlockChain]fetchHistoryData failed, hash: %s", hash)
+	end
 	return data;
 end
 
@@ -111,20 +145,37 @@ end
 --[[internal]]
 
 function BlockChain:push(blockdetail)
-	self.database:push(blockdetail);
+	Utility.log("[BlockChain]push block,  height: %d, transactions count: %d, hash: %s", 
+					blockdetail:getHeight(), #blockdetail.block.transactions,
+					Utility.HashBytesToString(blockdetail:getHash()))
+	self.database:push(blockdetail.block, blockdetail:getHeight());
+
+	-- notify transactionPool
+	self:handleEvent("PushBlock", blockdetail);
 end
 
 -- remove and return blocks above the given height
-function BlockChain:pop(height --[[default: top]])
+-- default: top
+function BlockChain:pop(height )
 	local ret = {}
 	local db = self.database;
 	local blocks = self.blocks;
 	local top = blocks:getHeight();
 	height = height or top; 
+
+
 	while height <= top do 
-		ret[#ret + 1] = db:pop();
+		Utility.log("[BlockChain]pop block, height:%d ", top)
+		
+		ret[#ret + 1] = BlockDetail.create(db:pop());
 		top = blocks:getHeight();
 	end
+
+	-- notify transactionPool
+	for k,v in ipairs(ret) do
+		self:handleEvent("PopBlock", v);
+	end
+	
 	return ret;
 end
 
