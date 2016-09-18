@@ -32,9 +32,9 @@ local function fullnode()
 
 
     Wallet.pay(50, Wallet.generateKeys(10));
-    Wallet.report();
     
     Miner.generateBlock();
+    Wallet.report();
 
     bc:report()
 end

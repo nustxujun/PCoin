@@ -98,7 +98,7 @@ end
 function TransactionPool:removeDependencies(hash)
 	local deps = {}
 	for k,v in self.trans:iterator() do
-		for j,k in v.inputs do
+		for j,k in ipairs(v.inputs) do
 			if k.preOutput.hash == hash then
 				deps[#deps + 1] = v;
 				break;

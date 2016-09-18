@@ -5,9 +5,14 @@
 
 NPL.load("(gl)script/PCoin/Network.lua");
 NPL.load("(gl)script/PCoin/Block.lua");
+NPL.load("(gl)script/PCoin/Transaction.lua");
+NPL.load("(gl)script/PCoin/Constants.lua");
 
+local Constants = commonlib.gettable("Mod.PCoin.Constants");
+local TransactionPool = commonlib.gettable("Mod.PCoin.Transaction");
 local Block = commonlib.gettable("Mod.PCoin.Block");
 local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader")
+local BlockDetail = commonlib.gettable("Mod.PCoin.BlockDetail");
 local Network = commonlib.gettable("Mod.PCoin.Network");
 
 local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
@@ -24,7 +29,7 @@ local protocols =
 	"node_address",
 	"block",
 	"block_header",
-	"transaction_hash",
+	"transaction_notify",
 	"transaction"
 
 }
@@ -48,6 +53,31 @@ local function getSeq()
 	seqNum = seqNum + 1;
 	return seqNum
 end
+
+local function send(nid, msg)
+	Network.send(nid, msg);
+
+	-- echo(msg)
+	-- msg.nid = nid;
+	-- Protocol.receive(msg)
+end
+
+local function broadcast(msg)
+	Network.broadcast(msg);
+	
+	-- echo(msg)
+	-- msg.nid = 1;
+	-- Protocol.receive(msg)
+end
+
+local function fetch(type, v)
+	if type == "hash" then 
+		return blockchain:fetchBlockDataByHash(v);
+	elseif type == "height" then
+		return blockchain:fetchBlockDataByHeight(v);
+	end
+end
+
 
 --function------------------------------------------------------------------------------
 
@@ -74,7 +104,7 @@ local function request(nid, name, msg, callback)
 	msg.type = REQUEST_T;
 	callbacks[msg.seq] = callback
 
-	Network.send(nid, msg);
+	send(nid, msg)
 end
 
 --{timestamp = 0, }
@@ -96,7 +126,7 @@ end
 function Protocol.block(nid, desired)
 	request(nid, "block", {desired = desired}, 
 		function (msg)
-			for k,v in pairs(msg.desired) do 
+			for k,v in ipairs(msg.desired) do 
 				local bd = BlockDetail.create(Block.create(v));
 				blockchain:store(bd);
 			end
@@ -104,67 +134,32 @@ function Protocol.block(nid, desired)
 end
 
 --{top=0, desired = {{header},{header}, ... ,type = "hash" or "height"}}
-function Protocol.block_header(nid,desired)
-	request(nid, "block_header", {desired = desired}, 
-		function (msg)
-			local type = msg.desired.type
-			local fetch = nil;
-			if type == "hash" then
-				fetch = blockchain.fetchBlockDataByHash;
-			elseif type == "height" then
-				fetch = blockchain.fetchBlockDataByHeight;
-			end
-
-			local desired = {type = type}
-			for k,v in pairs(msg.desired) do 
-				local data = fetch(blockchain, v);
-				if not data then
-					desired[#desired + 1] = v; 
-				end
-			end
-			Protocol.block(msg.nid);
-
-		end)
+function Protocol.block_header(nid,desired, callback)
+	request(nid, "block_header", {desired = desired}, callback)
 end
 
-
-
+function Protocol.transaction(nid, desired)
+	request(nid, "transaction", {desired = desired});
+end
 
 
 --response------------------------------------------------------------------------------
 local function response(nid, seq, msg)
 	msg.seq = seq
 	msg.type = RESPONSE_T;
-	Network.send(nid, msg);
+	send(nid, msg);
 end
-
-local function getBlockData(desired, c)
-	local fetch = nil;
-	if type == "hash" then
-		fetch = blockchain.fetchBlockDataByHash;
-	elseif type == "height" then
-		fetch = blockchain.fetchBlockDataByHeight;
-	end
-	local ret = {}
-	for k,v in pairs(desired) do 
-		local data = fetch(blockchain, v);
-		if data then
-			ret[#ret + 1] = data.block; 
-		end
-	end
-	return ret;
-end
-
 
 function Protocol.receive(msg)
 	local receiver = nil;
+	local name = getProtocolName(msg.id);
 	if msg.type == REQUEST_T then
-		receiver = protocols[msg.id];
+		receiver = protocols[name];
 	elseif msg.type == RESPONSE_T then
 		receiver = callbacks[msg.seq];
 		callbacks[msg.seq] = nil;
 	elseif msg.type == NOTIFY_T then 
-		receiver = protocols[msg.id];
+		receiver = protocols[name];
 	else
 		return
 	end
@@ -192,17 +187,19 @@ end
 protocols.block = 
 function (msg)
 	if msg.type == REQUEST_T then
+		echo(msg)
 		local type = msg.desired.type;
-		local datas = getBlockData(msg.desired, );
-		datas.type = type;
-		response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = datas})
 
-	elseif msg.type == NOTIFY_T then
-		for k,v in pairs(msg.desired) do 
-			local bd = BlockDetail.create(Block.create(v));
-			blockchain:store(bd);
+		local desired = {type = type}
+		for k,v in ipairs(msg.desired) do 
+			local data = fetch(type, v);
+			if data then 
+				desired[#desired + 1] = data;  
+			end
 		end
+		response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
 	end
+	
 end
 
 protocols.block_header = 
@@ -230,14 +227,19 @@ function (msg)
 	else
 		local type = msg.desired.type
 		if msg.type == REQUEST_T then
-			local datas = getBlockData(msg.desired, type);
-			datas.type = type;
-			response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = datas})
+			local desired = {type = type}
+			for k,v in ipairs(msg.desired) do 
+				local data = fetch(v, type)
+				if data then 
+					desired[#desired + 1] = data;
+				end
+			end
+			response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
 
 		elseif msg.type == NOTIFY_T and type == "hash"then
 			-- request blocks if not existed;
 			local desired = {type = type}
-			for k,v in pairs(msg.desired) do 
+			for k,v in ipairs(msg.desired) do 
 				if not blockchain:fetchBlockDataByHash(v) then
 					desired[#desired + 1] = v; 
 				end
@@ -247,6 +249,26 @@ function (msg)
 	end
 end
 
+protocols.transaction = 
+function (msg)
+	for k,data in ipairs(msg.desired) do 
+		local tx = Transaction.create(data);
+		transactionpool:store(tx);
+	end
+end
+
+protocols.transaction_notify = 
+function (msg)
+	local desired = {};
+	for k,v in ipairs(msg.desired) do
+		 transactionpool:get(v);
+		if (not transactionpool:get(v)) and 
+			(not blockchain:fetchTransactionData(v)) then 
+			desired[#desired + 1] = v;
+		end
+	end
+	Protocol.transaction(msg.nid, desired);
+end
 
 
 
@@ -256,19 +278,56 @@ local function notify(name,msg)
 	msg.seq = getSeq();
 	msg.type = NOTIFY_T;
 
-	Network.broadcast( msg);
+	broadcast( msg);
 end
 
-function Protocol.notifyNewBlock(header)
-	notify("block_header", {header:hash(), type="hash"})
+function Protocol.notifyNewBlock(hash)
+	notify("block_header", {desired = {hash, type="hash"}})
 end
 
 function Protocol.notifyNewTransaction(transaction)
-	notify("transaction", {transaction:hash()})
+	notify("transaction_notify", {transaction:hash()})
 end
 
 
 
 
-Network.register(Protocol.receive);
+--Network.register(Protocol.receive);
 
+
+
+--test---------------------------------------------------------------------------------------------
+
+function Protocol.test()
+	NPL.load("(gl)script/PCoin/BlockChain.lua");
+	local BlockChain = commonlib.gettable("Mod.PCoin.BlockChain");
+	NPL.load("(gl)script/PCoin/TransactionPool.lua");
+	local TransactionPool = commonlib.gettable("Mod.PCoin.TransactionPool");
+	NPL.load("(gl)script/PCoin/Settings.lua");
+	local Settings = commonlib.gettable("Mod.PCoin.Settings");
+
+
+	local bc = BlockChain.create(Settings.BlockChain);
+    local tp = TransactionPool.create(bc, Settings.TransactionPool);
+
+	Protocol.init(bc, tp);
+	echo("send ping")
+	Protocol.ping(1, function (msg) echo("receive ping")end);
+	echo("send version")
+	Protocol.version(1, 1000,function (msg) echo("receive version")end);
+
+	local top = bc:getHeight();
+	echo(top)
+	local b = bc:fetchBlockDataByHeight(top);
+
+	echo("send header")
+	Protocol.block_header(1, {2, ["type"] = "height"}, 
+	function (msg)
+		echo(msg)
+	end);
+
+	echo("send newBlock")
+
+	local header = BlockHeader.create(b.block.header);
+	Protocol.notifyNewBlock(header:hash())
+end

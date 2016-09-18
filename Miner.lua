@@ -53,7 +53,7 @@ function Miner.generateBlock()
 	block.transactions = transactionpool:getAll();
 	header.merkle = block:generateMerkleRoot();
 
-	Miner.mine(block, curTarget,true)
+	Miner.mine(block,true)
 end
 
 
@@ -65,12 +65,18 @@ function Miner.stop()
 
 end
 
+function Miner.start()
+
+end
+
 function Miner.proofofwork(block)
 	local nonce = NPL.getValidPOW();
 	if nonce ~= 0 then
 		Miner.stop();
 		block.header.nonce = nonce;
 		Miner.store(block);
+
+		Miner.generateBlock();
 	end
 end
 
@@ -81,18 +87,18 @@ function Miner.store(block)
 	blockchain:store(blockdetail);
 end
 
-function Miner.mine(block, bits,  CPPsupported)
-	Utility.log("begin mining, target: %x", bits)
+function Miner.mine(block,  CPPsupported)
+	Utility.log("begin mining, target: %x", block.header.bits)
 
 	if CPPsupported and NPL.ProofOfWork then
-		NPL.ProofOfWork(NPL.SerializeToSCode("",block.header:toData()) , bits);
+		NPL.ProofOfWork(NPL.SerializeToSCode("",block.header:toData()) , block.header.bits);
 		timer = commonlib.Timer:new({callbackFunc = 
 		function ()
 			Miner.proofofwork(block);
 		end});
 		timer:Change(1000, 1000);
 	else
-		local target = uint256:new():setCompact(bits);
+		local target = uint256:new():setCompact(block.header.bits);
 		local header = block.header;
 		nonce = 1;
 		local hash = uint256:new();

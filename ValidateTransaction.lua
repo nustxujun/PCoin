@@ -143,7 +143,8 @@ local function checkPreTxDuplicate(transaction, pool, chain)
 
 		-- check double-spending
 		if chain:fetchSpendData(input.preOutput) then
-			return "Error:DoubleSpend";
+			echo(transaction)
+			return "Error:DoubleSpend, input index: " .. index;
 		end
 	end
 

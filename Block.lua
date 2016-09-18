@@ -132,10 +132,10 @@ local function buildMerkleTree(merkle)
 		local size = #merkle;
 		if size % 2 ~= 0 then
 			merkle[#merkle + 1] = merkle[size];
+			size = size + 1;
 		end
-		size = size + 1;
 
-		local newMerkle;
+		local newMerkle = {};
 		for i = 1, size, 2 do
 			local newroot = bitcoinHash(merkle[i] .. merkle[i+1]);
 			newMerkle[#newMerkle + 1] = newroot;

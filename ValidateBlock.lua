@@ -251,7 +251,6 @@ end
 local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 	local fees = 0;
 	local totalSigops = 0;
-	local valueIn = 0
 	for index,tx in pairs(block.transactions) do
 		if isSpentDuplicate(tx, fork, chain) then 
 			return "Error:DuplicateOrSpent";
@@ -262,6 +261,7 @@ local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 			return "Error:TooManySigs"
 		end
 
+		local valueIn = 0
 		local ret = validateInputs(tx,index, fork, chain, orphanchain, orphanIndex, totalSigops, valueIn );
 		if ret.error then
 			return ret.error;
@@ -271,9 +271,11 @@ local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 		end
 
 		local valueOut = tx:totalOutputValue();
+		echo({valueOut, valueIn})
 		if ret.valueIn < valueOut then
 			return "Error:FeesOutOfRange";
 		end
+		echo(fees)
 		fees = fees + valueIn - valueOut;
 		if fees > Constants.maxMoney then
 			return "Error:FeesOutOfRange";
