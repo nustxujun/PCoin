@@ -55,19 +55,13 @@ local function getSeq()
 end
 
 local function send(nid, msg)
+	msg.module = "internal"
 	Network.send(nid, msg);
-
-	-- echo(msg)
-	-- msg.nid = nid;
-	-- Protocol.receive(msg)
 end
 
 local function broadcast(msg)
+	msg.module = "internal"
 	Network.broadcast(msg);
-	
-	-- echo(msg)
-	-- msg.nid = 1;
-	-- Protocol.receive(msg)
 end
 
 local function fetch(type, v)
@@ -94,6 +88,9 @@ function Protocol.init(chain, pool)
 			end
 		end
 	) 
+
+	Network.register(Protocol.receive);
+	
 end
 
 
@@ -292,7 +289,6 @@ end
 
 
 
---Network.register(Protocol.receive);
 
 
 
