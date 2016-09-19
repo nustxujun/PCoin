@@ -55,7 +55,7 @@ function Organizer:process(blockdetail)
 	if height then
 		self:replaceChain(height , orphanchain)
 	else
-		log("[Organizer]process: cannot find previous block , hash:", Utility.HashBytesToString(hash));
+		log("[Organizer]process: cannot find previous block , hash: %s", Utility.HashBytesToString(hash));
 	end
 	blockdetail:setProcessed()
 end

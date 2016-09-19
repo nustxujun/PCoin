@@ -138,5 +138,6 @@ end
 
 function Database:report()
 	echo("Database report:")
+	self.blocks:report()
 	self.spends:report()
 end

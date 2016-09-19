@@ -29,14 +29,16 @@ local package;
 local wallet;
 local unconfirmed;
 local nextKey;
+local seed;
 
 local function makeKey()
     nextKey = makePrivateKey(nextKey, "string")
     return makePublicKey(nextKey,"string"), nextKey;
 end
 
-function Wallet.init(chain, pool, seed, lastKey)
-    nextKey = seed;
+function Wallet.init(chain, pool, start, lastKey)
+    seed = start
+    nextKey = start;
     blockchain = chain;
     transactionPool = pool
     unconfirmed = {};
@@ -129,7 +131,8 @@ function Wallet.getInputs(value)
     return 
 end
 
-function Wallet.collectCoins(seed, lastKey)
+function Wallet.collectCoins(start, lastKey)
+    seed = start
     nextKey = seed;
     local collector = {}
     local key = nextKey
@@ -171,7 +174,7 @@ end
 function Wallet.report()
     echo("Wallet report:")
     echo("coins")
-    wallet.coins , wallet.total = Wallet.collectCoins("Treasure");
+    wallet.coins , wallet.total = Wallet.collectCoins(seed);
     for k,v in pairs(wallet.coins) do
         echo(v);
     end    

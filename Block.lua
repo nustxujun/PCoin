@@ -102,9 +102,11 @@ end
 
 function Block:fromData(data)
 	self.header = BlockHeader.create(data.header);
+	self.transactions = {}
 	local trans = self.transactions
 	for k,v in pairs(data.transactions or {}) do
-		trans[#trans + 1] = v; -- only hash
+		local t = Transaction.create(v);
+		trans[#trans + 1] = t;
 	end
 end
 

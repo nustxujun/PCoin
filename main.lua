@@ -29,12 +29,13 @@ local function fullnode()
     Miner.init(bc, tp);
     Wallet.init(bc, tp , "Treasure");
 
+    Network.init();
+    Protocol.init(bc, tp);
 
-
-    Wallet.pay(50, Wallet.generateKeys(10));
-    
-    Miner.generateBlock();
-    Wallet.report();
+    --Wallet.pay(10, {"02c44a58839b261a6a14e5de674415eefc2cc5f2d1c5481ea654b02330030141"});
+    --Miner.generateBlock();
+    --Miner.generateBlock();
+    --Wallet.report();
 
     bc:report()
 end

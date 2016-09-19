@@ -17,10 +17,12 @@ local Network = commonlib.gettable("Mod.PCoin.Network");
 
 local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 
+local blockchain ;
+local transactionpool;
 --protocol
-REQUEST_T = 1;
-RESPONSE_T = 2;
-NOTIFY_T = 3;
+local REQUEST_T = 1;
+local RESPONSE_T = 2;
+local NOTIFY_T = 3;
 
 local protocols = 
 {
@@ -75,8 +77,7 @@ end
 
 --function------------------------------------------------------------------------------
 
-local blockchain ;
-local transactionpool;
+
 function Protocol.init(chain, pool)
 	blockchain = chain;
 	transactionpool = pool;
@@ -148,6 +149,7 @@ local function response(nid, seq, msg)
 end
 
 function Protocol.receive(msg)
+	echo(msg)
 	local receiver = nil;
 	local name = getProtocolName(msg.id);
 	if msg.type == REQUEST_T then
@@ -184,14 +186,22 @@ end
 protocols.block = 
 function (msg)
 	if msg.type == REQUEST_T then
-		echo(msg)
 		local type = msg.desired.type;
 
 		local desired = {type = type}
 		for k,v in ipairs(msg.desired) do 
 			local data = fetch(type, v);
 			if data then 
-				desired[#desired + 1] = data;  
+				local txs = {}
+				for k,v in ipairs(data.block.transactions) do
+					local txdata = blockchain:fetchTransactionData(v);
+					if not txdata then 
+						return
+					end
+					txs[#txs + 1] = txdata.transaction;
+				end
+				data.block.transactions = txs;
+				desired[#desired + 1] = data.block;  
 			end
 		end
 		response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})

@@ -63,3 +63,19 @@ end
 function BlockDatabase:getHeight()
 	return self.height;
 end
+
+
+function BlockDatabase:report()
+	echo("BlockDatabase report")
+    local err, data = self.db[Collection]:find({})
+    for k,v in pairs(data) do
+		local hash = "";
+		local prehash = "";
+		if (v.hash) then
+			hash = Utility.HashBytesToString(v.hash);
+		end
+		echo({k, hash})
+        echo(v)
+    end
+    echo("------------------------")
+end

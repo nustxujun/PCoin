@@ -44,11 +44,9 @@ end
 
 function SpendDatabase:report()
     echo("SpendDatabase report")
-    local err, data = self.db[Collection]:exec("Select * from Collection");
-    echo(err)
+    local err, data = self.db[Collection]:find({})
     for k,v in pairs(data) do
-        echo(k)
-        echo(v)
+        echo({k, v})
     end
     echo("------------------------")
 end
