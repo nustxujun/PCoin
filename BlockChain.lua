@@ -106,6 +106,11 @@ function BlockChain:getDifficulty(height)
 	return diff;
 end
 
+-- return boolean result if block exists in main chain or orphan pool 
+function BlockChain:exist(hash)
+	return self.organizer:exist(hash)
+end
+
 function BlockChain:fetchBlockDataByHeight(height)
 	local err, data = self.blocks:getBlockByHeight(height);
 	if err then

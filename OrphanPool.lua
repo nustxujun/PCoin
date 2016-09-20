@@ -12,9 +12,10 @@ function OrphanPool:ctor()
 	self.pool = {};
 end
 
+-- find previous blocks in pool
 function OrphanPool:trace(blockdetail)
-	local trace = Buffer:new();
-	trace:push_back(blockdetail);
+	local trace = {};
+	trace[#trace + 1] = blockdetail;
 
 	local pool = self.pool;
 	local hash = blockdetail:getPreHash();
@@ -22,11 +23,17 @@ function OrphanPool:trace(blockdetail)
 	while(b) do
 		b = pool[hash];
 		if (b) then
-			trace:push_back( b);
+			trace[#trace + 1] = b;
 			hash = b:getPreHash();
 		end
 	end
-	return trace;
+
+	local reverse = Buffer:new();
+	local size = #trace;
+	for i = size , 1 , -1 do
+		reverse:push_back(trace[i]);
+	end
+	return reverse;
 end
 
 function OrphanPool:add(blockdetail)
@@ -54,10 +61,13 @@ function OrphanPool:unprocessed()
 	return ret;
 end
 
+function OrphanPool:exist(hash)
+	return self.pool[hash] ~= nil
+end
+
 function OrphanPool:report()
 	echo("OrphanPool")
 	echo("	orphan size:".. #self.pool)
 	local q = self:unprocessed();
 	echo("	unprocessed orphan size:" .. #q);
-	
 end

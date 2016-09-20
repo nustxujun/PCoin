@@ -1,3 +1,6 @@
+-- NPL.load("(gl)script/PCoin/main.lua");
+
+
 NPL.load("(gl)script/PCoin/BlockChain.lua");
 local BlockChain = commonlib.gettable("Mod.PCoin.BlockChain");
 
@@ -19,15 +22,16 @@ local Settings = commonlib.gettable("Mod.PCoin.Settings");
 NPL.load("(gl)script/PCoin/Wallet/Wallet.lua");
 local Wallet = commonlib.gettable("Mod.PCoin.Wallet.Wallet");
 
+local PCoin = commonlib.gettable("Mod.PCoin");
 
 
 
-local function fullnode()
+local function fullnode(seed)
 	local bc = BlockChain.create(Settings.BlockChain);
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
 
     Miner.init(bc, tp);
-    Wallet.init(bc, tp , "Treasure");
+    Wallet.init(bc, tp , seed);
 
     Network.init();
     Protocol.init(bc, tp);
@@ -36,11 +40,37 @@ local function fullnode()
     --Miner.generateBlock();
     --Miner.generateBlock();
     --Wallet.report();
-
-
-    bc:report()
+    --bc:report()
 end
 
 
+local function node1()
+    fullnode("Treasure");
+end
 
-fullnode()
+local function node2()
+    fullnode("test")
+
+    Network.connect("127.0.0.1","8099");
+end
+
+function PCoin.node(num)
+    local nodes = {node1, node2}
+    nodes[num]();
+end
+
+function PCoin.mine()
+    Miner.generateBlock();
+end
+
+function PCoin.pay(value, keys)
+    Wallet.pay(value, keys);
+end
+
+function PCoin.connect(ip, port)
+    Network.connect(ip or "127.0.0.1", port or "8099")
+end
+
+function PCoin.report()
+    Wallet.report();
+end

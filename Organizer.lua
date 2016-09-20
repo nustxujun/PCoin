@@ -54,10 +54,11 @@ function Organizer:process(blockdetail)
 	local height = self.chain:getHeight(hash);
 	if height then
 		self:replaceChain(height , orphanchain)
+		blockdetail:setProcessed()
 	else
-		log("[Organizer]process: cannot find previous block(hash: %s)", Utility.HashBytesToString(hash));
+		log("[Organizer]process: cannot find previous block in chain(hash: %s)", Utility.HashBytesToString(hash));
+		return "Error:PreviousNotFound";
 	end
-	blockdetail:setProcessed()
 end
 
 function Organizer:replaceChain(fork, orphanchain)
@@ -83,7 +84,7 @@ function Organizer:replaceChain(fork, orphanchain)
 	local mainwork = self.chain:getDifficulty(begin);
 	if orphanwork <= mainwork then
 		log("Insufficient work to reorganize, orphans work: %s, need: %s",orphanwork:tostring(), mainwork:tostring() );
-		return 
+		return;
 	end
 
 	local mainchain = self.chain;
@@ -132,6 +133,10 @@ function Organizer:clipOrphans(chain, index)
 	end 
 	chain:erase(index, count);
 	log("[Organizer] clipOrphans: cliped count: %d, remain: %d", count - index + 1, chain:size())
+end
+
+function Organizer:exist(hash)
+	return self.orphans:exist(hash) ~= nil or self.chain:fetchBlockDataByHash(hash) ~= nil;
 end
 
 function Organizer:report()

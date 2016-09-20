@@ -35,10 +35,20 @@ function Utility.blockWork(bits)
 		return 0
 	end
 
-	local bntarget = uint256:new(0);
-	bntarget:bnot();
-	return (bntarget / (target + 1)) + 1;
-	--return (Constants.maxTarget / target):getCompact();
+	--[[ 
+			2^256 / (target +1) ===>  
+			((2^256 - (1 + target)) / (target + 1)) + 1 ===>
+			(~target / (target + 1)) + 1
+		someone's explanation:
+			http://bitcoin.stackexchange.com/questions/34111/bitcoin-getblockwork-function
+
+	]]	
+	local bnottarget = target:clone();
+	return (bnottarget:bnot() / (target + 1)) + 1; 
+
+	-- get from https://en.bitcoin.it/wiki/Difficulty
+	-- return (uint256:new(0):bnot / target) -- pdiff
+	-- return (Constants.maxTarget / target)  -- bdiff
 end
 
 

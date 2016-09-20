@@ -256,7 +256,7 @@ function (msg)
 			-- request blocks if not existed;
 			local desired = {type = type}
 			for k,v in ipairs(msg.desired) do 
-				if not blockchain:fetchBlockDataByHash(v) then
+				if not blockchain:exist(v) then
 					desired[#desired + 1] = v; 
 				end
 			end

@@ -12,10 +12,26 @@ local function makeAddress(nid)
 	return "(gl)" .. nid .. ":script/PCoin/Network.lua";
 end
 
+local function loadNetworkSettings()
+	local att = NPL.GetAttributeObject();
+	att:SetField("TCPKeepAlive", true);
+	att:SetField("KeepAlive", false);
+	att:SetField("IdleTimeout", false);
+	att:SetField("IdleTimeoutPeriod", 1200000);
+	NPL.SetUseCompression(true, true);
+	att:SetField("CompressionLevel", -1);
+	att:SetField("CompressionThreshold", 1024*16);
+	-- npl message queue size is set to really large
+	__rts__:SetMsgQueueSize(5000);
+end
+
 function Network.init(port)
-	NPL.StartNetServer("0,0,0,0", port or "8099");
+	loadNetworkSettings();
 
 	NPL.AddPublicFile("script/PCoin/Network.lua", 2001);
+
+    port = tostring(port or 8099);
+	NPL.StartNetServer("0.0.0.0", port);
 end
 
 
