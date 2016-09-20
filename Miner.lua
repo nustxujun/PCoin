@@ -85,6 +85,7 @@ function Miner.store(block)
 	
 	local blockdetail = BlockDetail.create(block);
 	blockchain:store(blockdetail);
+	blockchain:organize();
 end
 
 function Miner.mine(block,  CPPsupported)

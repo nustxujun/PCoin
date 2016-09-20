@@ -11,7 +11,9 @@ NPL.load("(gl)script/PCoin/Output.lua");
 NPL.load("(gl)script/PCoin/Input.lua");
 NPL.load("(gl)script/PCoin/Point.lua");
 NPL.load("(gl)script/PCoin/Script.lua");
+NPL.load("(gl)script/PCoin/Protocol.lua");
 
+local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 local Script = commonlib.gettable("Mod.PCoin.Script");
 local Point = commonlib.gettable("Mod.PCoin.Point");
 local Input = commonlib.gettable("Mod.PCoin.Input");
@@ -67,14 +69,12 @@ function Wallet.pay(value, hashes)
     
     local osize = #hashes;
     local each = value / osize; 
-        echo("output")
     
     for k,v in pairs(hashes) do
         local o = Output:new()
         o.value = each;
         o.script = Script.create(v);
         tx.outputs[#tx.outputs + 1] = o; 
-        echo(o)
     end
 
     local cash = total - value;
@@ -83,8 +83,6 @@ function Wallet.pay(value, hashes)
         o.value = cash;
         o.script = Script.create(makeKey());
         tx.outputs[#tx.outputs + 1] = o;
-        echo("cash")
-        echo(o)
     end
 
 
@@ -94,6 +92,7 @@ function Wallet.pay(value, hashes)
             wallet.coins[v] = nil;
         end
         
+        Protocol.notifyNewTransaction(tx:hash())
     end
 end
 
@@ -114,13 +113,11 @@ function Wallet.getInputs(value)
     local total = 0;
     local inputs = {}
     local hashes = {}
-    echo("input")
     for k,v in pairs(wallet.coins) do 
         total = total + v.value;
         local input = Input:new()
         input.preOutput = Point.create(v.point);
         input.script = Script.create(k);
-        echo(v)
         inputs[#inputs + 1] = input;
         hashes[#hashes + 1] = k;
 

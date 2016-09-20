@@ -9,7 +9,7 @@ NPL.load("(gl)script/PCoin/Transaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
 
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
-local TransactionPool = commonlib.gettable("Mod.PCoin.Transaction");
+local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local Block = commonlib.gettable("Mod.PCoin.Block");
 local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader")
 local BlockDetail = commonlib.gettable("Mod.PCoin.BlockDetail");
@@ -85,7 +85,7 @@ function Protocol.init(chain, pool)
 	chain:setHandler(
 		function (event,blockdetail)
 			if (event == "PushBlock") then
-				Protocol.notifyNewBlock(blockdetail.block.header);
+				Protocol.notifyNewBlock(blockdetail:getHash());
 			end
 		end
 	) 
@@ -128,6 +128,8 @@ function Protocol.block(nid, desired)
 				local bd = BlockDetail.create(Block.create(v));
 				blockchain:store(bd);
 			end
+			blockchain:organize();
+
 		end)
 end
 
@@ -137,7 +139,13 @@ function Protocol.block_header(nid,desired, callback)
 end
 
 function Protocol.transaction(nid, desired)
-	request(nid, "transaction", {desired = desired});
+	request(nid, "transaction", {desired = desired}, 
+		function (msg)
+			for k,v in pairs(msg.desired) do 
+				local tx = Transaction.create(v);
+				transactionpool:store(tx);
+			end
+		end);
 end
 
 
@@ -219,6 +227,7 @@ function (msg)
 			local i = top;
 			while (i >= 1) do 
 				local data = blockchain:fetchBlockDataByHeight(i);
+				
 				if data then 
 					desired[#desired + 1] = data.block.header;
 				else
@@ -227,7 +236,7 @@ function (msg)
 				if #desired >= 10 then
 					step = step * 2;
 				end
-				i = i + step;
+				i = i - step;
 			end
 			response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
 		end
@@ -258,9 +267,20 @@ end
 
 protocols.transaction = 
 function (msg)
-	for k,data in ipairs(msg.desired) do 
-		local tx = Transaction.create(data);
-		transactionpool:store(tx);
+	local desired = {};
+	if msg.type == REQUEST_T then 
+		for k,v in ipairs(msg.desired) do 
+			local tx =transactionpool:get(v);
+			local txData;
+			if tx then 
+				txData = tx:toData();
+			else 
+				txData = blockchain:fetchTransactionData(v)
+			end
+			desired[#desired + 1] = txData
+			response(msg.nid, msg.seq, {desired = desired})
+
+		end
 	end
 end
 
@@ -268,7 +288,6 @@ protocols.transaction_notify =
 function (msg)
 	local desired = {};
 	for k,v in ipairs(msg.desired) do
-		 transactionpool:get(v);
 		if (not transactionpool:get(v)) and 
 			(not blockchain:fetchTransactionData(v)) then 
 			desired[#desired + 1] = v;
@@ -292,8 +311,8 @@ function Protocol.notifyNewBlock(hash)
 	notify("block_header", {desired = {hash, type="hash"}})
 end
 
-function Protocol.notifyNewTransaction(transaction)
-	notify("transaction_notify", {transaction:hash()})
+function Protocol.notifyNewTransaction(hash)
+	notify("transaction_notify", {desired = {hash}})
 end
 
 

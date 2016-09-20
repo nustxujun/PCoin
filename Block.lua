@@ -110,12 +110,18 @@ function Block:fromData(data)
 	end
 end
 
-function Block:toData()
+function Block:toData(fullData)
 	local trans = {};
-	-- save hash to db
-	-- get tx data from txdb with the hashes
-	for k,v in pairs(self.transactions) do
-		trans[#trans + 1] = v:hash();
+	if fullData then
+		for k,v in pairs(self.transactions) do
+			trans[#trans + 1] = v:toData();
+		end
+	else
+		-- save hash to db
+		-- get tx data from txdb with the hashes
+		for k,v in pairs(self.transactions) do
+			trans[#trans + 1] = v:hash();
+		end
 	end
 
 	return 

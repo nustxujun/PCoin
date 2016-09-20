@@ -80,8 +80,11 @@ function BlockChain:store(blockdetail)
 		return false;
 	end
 
-	self.organizer:organize();
 	return true;
+end
+
+function BlockChain:organize()
+	self.organizer:organize();
 end
 
 -- get block work from HEIGHT to TOP

@@ -51,8 +51,7 @@ function TransactionPool:store(transaction)
 end
 
 function TransactionPool:get(hash)
-	local index, tx = self.trans:find(function (t) return t:hash() == hash ;end)
-	return tx;
+	return self.trans:find(function (t) return t:hash() == hash ;end)
 end
 
 function TransactionPool:getAll()
@@ -145,5 +144,8 @@ end
 
 function TransactionPool:report()
 	echo("TransactionPool")
-	echo(	self.trans:size() .. " transactions in pool");
+	for k,v in self.trans:iterator() do
+		echo({k,v})
+	end
+	echo("---------------------------------------------")
 end

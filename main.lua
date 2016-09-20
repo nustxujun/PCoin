@@ -37,6 +37,7 @@ local function fullnode()
     --Miner.generateBlock();
     --Wallet.report();
 
+
     bc:report()
 end
 
