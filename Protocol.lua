@@ -120,9 +120,10 @@ function Protocol.node_address(nid, callback)
 	request(nid, "node_address", {},callback);
 end
 
---{ desired = {{header},{header}, ... ,type = "hash" or "height"}}
-function Protocol.block(nid, desired)
-	request(nid, "block", {desired = desired}, 
+
+--get block
+function Protocol.block(nid, desired, callback)
+	request(nid, "block", {desired = desired}, callback or 
 		function (msg)
 			for k,v in ipairs(msg.desired) do 
 				local bd = BlockDetail.create(Block.create(v));
@@ -133,9 +134,61 @@ function Protocol.block(nid, desired)
 		end)
 end
 
---{top=0, desired = {{header},{header}, ... ,type = "hash" or "height"}}
-function Protocol.block_header(nid,desired, callback)
-	request(nid, "block_header", {desired = desired}, callback)
+--{locator = {hash,hash, ... ,hash}}
+function Protocol.block_header(nid)
+	local function getLocator(height)
+		local locator = {}
+		local step = 1
+		local i = height;
+		while (i >= 1) do 
+			local data = blockchain:fetchBlockDataByHeight(i);
+			if data then 
+				locator[#locator + 1] = data.block.header;
+			else
+				break;
+			end
+			if #locator >= 10 then
+				step = step * 2;
+			end
+			i = i - step;
+		end
+		return locator, i + step - 1;
+	end
+	local locator, tail = getLocator(blockchain:getHeight());
+
+	local function callback(msg)
+		if #msg.headers ~= 0 then
+			local desired = {}
+			for k,v in pairs(#msg.headers) do 
+				local data = blockchain:exist(v);
+				if not data then 
+					desired[#desired + 1] = v;
+				end
+			end
+			if #desired == 0 then
+
+			else
+				Protocol.block(nid,  desired), 
+					function (msg)
+						for k,v in ipairs(msg.desired) do 
+							local bd = BlockDetail.create(Block.create(v));
+							blockchain:store(bd);
+						end
+						blockchain:organize();
+						
+						if msg.top > blockchain:getHeight() then 
+							 Protocol.block_header(nid)
+						end
+					end);
+			end
+		elseif tail > 0 then
+			locator, tail = getLocator(tail);
+			request(nid, "block_header", {locator = locator)}, callback);
+		else	
+
+		end
+	end
+	request(nid, "block_header", {locator = locator)}, callback);
 end
 
 function Protocol.transaction(nid, desired)
@@ -193,76 +246,56 @@ end
 
 protocols.block = 
 function (msg)
-	if msg.type == REQUEST_T then
-		local type = msg.desired.type;
-
-		local desired = {type = type}
-		for k,v in ipairs(msg.desired) do 
-			local data = fetch(type, v);
-			if data then 
-				local txs = {}
-				for k,v in ipairs(data.block.transactions) do
-					local txdata = blockchain:fetchTransactionData(v);
-					if not txdata then 
-						return
-					end
-					txs[#txs + 1] = txdata.transaction;
+	local desired = {}
+	for k,v in ipairs(msg.desired) do 
+		local data = blocchain:fetchBlockDataByHash(v);
+		if data then 
+			local txs = {}
+			for k,v in ipairs(data.block.transactions) do
+				local txdata = blockchain:fetchTransactionData(v);
+				if not txdata then 
+					return
 				end
-				data.block.transactions = txs;
-				desired[#desired + 1] = data.block;  
+				txs[#txs + 1] = txdata.transaction;
 			end
+			data.block.transactions = txs;
+			desired[#desired + 1] = data.block;  
 		end
-		response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
 	end
+	response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
 	
 end
 
 protocols.block_header = 
 function (msg)
-	if not msg.desired or not msg.desired.type then
-		if  msg.type == REQUEST_T then
-			local desired = {type = "height"}
-			local top = blockchain:getHeight();
-			local step = 1
-			local i = top;
-			while (i >= 1) do 
-				local data = blockchain:fetchBlockDataByHeight(i);
-				
-				if data then 
-					desired[#desired + 1] = data.block.header;
-				else
-					break;
+	if msg.type == REQUEST_T then
+		local headers = {};
+		local top = blockchain:getHeight();
+		local max_num = math.min(100, top);
+		for k,v in pairs(msg.locator) do
+			local header = BlockHeader.create(v);
+			local height = blockchain:getHeight(header:hash());
+			if height then
+				for i = height, max_num do 
+					local data = blockchain:fetchBlockDataByHeight(height);
+					headers[#headers + 1] = data.hash;
 				end
-				if #desired >= 10 then
-					step = step * 2;
-				end
-				i = i - step;
+				break;
 			end
-			response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
 		end
-	else
-		local type = msg.desired.type
-		if msg.type == REQUEST_T then
-			local desired = {type = type}
-			for k,v in ipairs(msg.desired) do 
-				local data = fetch(v, type)
-				if data then 
-					desired[#desired + 1] = data;
-				end
-			end
-			response(msg.nid, msg.seq, {top = blockchain:getHeight(),desired = desired})
+		response(msg.nid, msg.seq, {headers = headers});
 
-		elseif msg.type == NOTIFY_T and type == "hash"then
-			-- request blocks if not existed;
-			local desired = {type = type}
-			for k,v in ipairs(msg.desired) do 
-				if not blockchain:exist(v) then
-					desired[#desired + 1] = v; 
-				end
+	elseif msg.type == NOTIFY_T then
+		-- request blocks if not existed;
+		local desired = {type = type}
+		for k,v in ipairs(msg.desired) do 
+			if not blockchain:exist(v) then
+				desired[#desired + 1] = v; 
 			end
-			Protocol.block(msg.nid, desired);
 		end
+		Protocol.block(msg.nid, desired);
 	end
+	
 end
 
 protocols.transaction = 
