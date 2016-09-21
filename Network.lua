@@ -43,6 +43,8 @@ function Network.receive(msg)
 		connections[msg.nid] = true;
 	end
 
+	echo({"receive",msg})
+
 	if callback then
 		callback(msg);
 	end
@@ -51,6 +53,7 @@ end
 function Network.send(nid, msg)
 	msg.nid = nid;
 	msg.service = "PCoin";
+	echo({"send",msg})
 	if NPL.activate(makeAddress(nid), msg) ~= 0 then
 		echo({"warning: cannot send msg to ",nid})
 		Network.collect(nid);
@@ -58,9 +61,11 @@ function Network.send(nid, msg)
 end
 
 local send = Network.send;
-function Network.broadcast(msg)
+function Network.broadcast(msg, exclude)
 	for k,v in pairs(connections) do
-		send(k, msg);
+		if k ~= exclude then
+			send(k, msg);
+		end
 	end
 end
 
@@ -121,6 +126,7 @@ function Network.recycle()
 	for k,v in pairs(rec) do 
 		connections[nid] = nil;
 		NPL.reject(k)
+		echo("close connection ".. k)
 	end
 
 	rec = {};

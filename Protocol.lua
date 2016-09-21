@@ -61,9 +61,9 @@ local function send(nid, msg)
 	Network.send(nid, msg);
 end
 
-local function broadcast(msg)
+local function broadcast(msg, exclude)
 	msg.module = "internal"
-	Network.broadcast(msg);
+	Network.broadcast(msg, exclude);
 end
 
 local function fetch(type, v)
@@ -82,13 +82,13 @@ function Protocol.init(chain, pool)
 	blockchain = chain;
 	transactionpool = pool;
 
-	chain:setHandler(
-		function (event,blockdetail)
-			if (event == "PushBlock") then
-				Protocol.notifyNewBlock(blockdetail:getHash());
-			end
-		end
-	) 
+	-- chain:setHandler(
+	-- 	function (event,blockdetail)
+	-- 		if (event == "PushBlock") then
+	-- 			Protocol.notifyNewBlock(blockdetail:getHash());
+	-- 		end
+	-- 	end
+	-- ) 
 
 	Network.register(Protocol.receive);
 	
@@ -100,6 +100,7 @@ local function request(nid, name, msg, callback)
 	msg.id = getProtocolID(name);
 	msg.seq = getSeq();
 	msg.type = REQUEST_T;
+	msg[1] = name
 	callbacks[msg.seq] = callback
 
 	send(nid, msg)
@@ -129,8 +130,10 @@ function Protocol.block(nid, desired, callback)
 				local bd = BlockDetail.create(Block.create(v));
 				blockchain:store(bd);
 			end
-			blockchain:organize();
-
+			local newblocks = blockchain:organize();
+			if #newblocks ~= 0 then
+				Protocol.notifyNewBlock(newblocks, nid);
+			end
 		end)
 end
 
@@ -143,7 +146,7 @@ function Protocol.block_header(nid)
 		while (i >= 1) do 
 			local data = blockchain:fetchBlockDataByHeight(i);
 			if data then 
-				locator[#locator + 1] = data.block.header;
+				locator[#locator + 1] = data.hash;
 			else
 				break;
 			end
@@ -159,23 +162,24 @@ function Protocol.block_header(nid)
 	local function callback(msg)
 		if #msg.headers ~= 0 then
 			local desired = {}
-			for k,v in pairs(#msg.headers) do 
+			for k,v in pairs(msg.headers) do 
 				local data = blockchain:exist(v);
 				if not data then 
 					desired[#desired + 1] = v;
 				end
 			end
-			if #desired == 0 then
-
-			else
-				Protocol.block(nid,  desired), 
+			
+			if #desired ~= 0 then
+				Protocol.block(nid,  desired,
 					function (msg)
 						for k,v in ipairs(msg.desired) do 
 							local bd = BlockDetail.create(Block.create(v));
 							blockchain:store(bd);
 						end
-						blockchain:organize();
-						
+						local newblocks = blockchain:organize();
+						if #newblocks ~= 0 then
+							Protocol.notifyNewBlock(newblocks, nid);
+						end
 						if msg.top > blockchain:getHeight() then 
 							 Protocol.block_header(nid)
 						end
@@ -183,12 +187,12 @@ function Protocol.block_header(nid)
 			end
 		elseif tail > 0 then
 			locator, tail = getLocator(tail);
-			request(nid, "block_header", {locator = locator)}, callback);
+			request(nid, "block_header", {locator = locator}, callback);
 		else	
 
 		end
 	end
-	request(nid, "block_header", {locator = locator)}, callback);
+	request(nid, "block_header", {locator = locator}, callback);
 end
 
 function Protocol.transaction(nid, desired)
@@ -210,7 +214,6 @@ local function response(nid, seq, msg)
 end
 
 function Protocol.receive(msg)
-	echo(msg)
 	local receiver = nil;
 	local name = getProtocolName(msg.id);
 	if msg.type == REQUEST_T then
@@ -248,7 +251,7 @@ protocols.block =
 function (msg)
 	local desired = {}
 	for k,v in ipairs(msg.desired) do 
-		local data = blocchain:fetchBlockDataByHash(v);
+		local data = blockchain:fetchBlockDataByHash(v);
 		if data then 
 			local txs = {}
 			for k,v in ipairs(data.block.transactions) do
@@ -273,11 +276,10 @@ function (msg)
 		local top = blockchain:getHeight();
 		local max_num = math.min(100, top);
 		for k,v in pairs(msg.locator) do
-			local header = BlockHeader.create(v);
-			local height = blockchain:getHeight(header:hash());
+			local height = blockchain:getHeight(v);
 			if height then
-				for i = height, max_num do 
-					local data = blockchain:fetchBlockDataByHeight(height);
+				for i = height + 1, max_num do 
+					local data = blockchain:fetchBlockDataByHeight(i);
 					headers[#headers + 1] = data.hash;
 				end
 				break;
@@ -287,8 +289,8 @@ function (msg)
 
 	elseif msg.type == NOTIFY_T then
 		-- request blocks if not existed;
-		local desired = {type = type}
-		for k,v in ipairs(msg.desired) do 
+		local desired = {}
+		for k,v in ipairs(msg.headers) do 
 			if not blockchain:exist(v) then
 				desired[#desired + 1] = v; 
 			end
@@ -332,20 +334,20 @@ end
 
 
 --broadcast-------------------------------------------------------------------------------------
-local function notify(name,msg)
+local function notify(name,msg, exclude)
 	msg.id = getProtocolID(name);
 	msg.seq = getSeq();
 	msg.type = NOTIFY_T;
-
-	broadcast( msg);
+	msg[1] = name;
+	broadcast( msg, exclude);
 end
 
-function Protocol.notifyNewBlock(hash)
-	notify("block_header", {desired = {hash, type="hash"}})
+function Protocol.notifyNewBlock(hashes, excludeSender)
+	notify("block_header", {headers = hashes}, excludeSender)
 end
 
-function Protocol.notifyNewTransaction(hash)
-	notify("transaction_notify", {desired = {hash}})
+function Protocol.notifyNewTransaction(hash, excludeSender)
+	notify("transaction_notify", {hash = hash}, excludeSender)
 end
 
 

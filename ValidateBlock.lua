@@ -8,7 +8,9 @@ NPL.load("(gl)script/PCoin/ValidateTransaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
 NPL.load("(gl)script/PCoin/uint256.lua");
 NPL.load("(gl)script/PCoin/Transaction.lua");
+NPL.load("(gl)script/PCoin/Block.lua");
 
+local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader");
 local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
@@ -111,9 +113,52 @@ local function checkBlock(block)
 end
 
 
-local function acceptBlock(block, height,chain)
+
+local targetSpacingSeconds = 10 * 60; -- 10 min
+local targetTimeSpanSeconds = 2* 7 * 24 * 60 * 60 -- 2 week
+--The target number of blocks for 2 weeks of work (2016 blocks).
+local retargetingInterval = targetTimeSpanSeconds / targetSpacingSeconds
+-- Value used to define retargeting range constraint.
+local retargetingFactor = 4;
+
+local function fetchBlock(height, fork, chain, orphanchain)
+	if height > fork then
+		return orphanchain:get(height - fork).block.header;
+	end
+	return BlockHeader.create(chain:fetchBlockDataByHeight(height).block.header);
+end
+
+local function actualTimeSpan(height,fork, interval,previous,chain, orphanchain)
+	local preInterval = fetchBlock(height - interval, fork, chain, orphanchain);
+	return previous.timestamp - preInterval.timestamp;
+end
+
+local function workRequired(index, fork, chain, orphanchain)
+	local previous = fetchBlock(fork + index - 1, fork, chain, orphanchain );
+	if ((fork + index) % retargetingInterval) == 0 then
+		local actual = actualTimeSpan(fork + index,fork, retargetingInterval,previous, chain, orphanchain);
+		local upper = targetTimeSpanSeconds * retargetingFactor;
+		local lower = targetTimeSpanSeconds / retargetingFactor;
+
+		local constrained = math.min(math.max(lower, actual), upper);
+
+		local retarget = uint256:new():setCompact(previous.bits);
+		retarget = retarget * constrained;
+		retarget = retarget / targetTimeSpanSeconds;
+
+		if retarget > Constants.maxTarget then
+			retarget = Constants.maxTarget;
+		end
+		
+		return retarget:getCompact();
+	else
+		return previous.bits;
+	end
+end
+
+local function acceptBlock(block, index, fork,chain,orphanchain)
 	local header = block.header;
-	if header.bits ~= Utility.workRequired(height, chain) then
+	if header.bits ~= workRequired(index, fork, chain, orphanchain) then
 		return "Error:IncorrectProofofWork";
 	end
 
@@ -284,11 +329,10 @@ local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 end
 
 function ValidateBlock.validate(block, index, fork, blockchain, orphanchain)
-	local height = fork + index;
 	local ret = checkBlock(block);
 	if ret then return ret end;
 
-	ret = acceptBlock(block, height, blockchain)
+	ret = acceptBlock(block, index, fork, blockchain, orphanchain)
 	if ret then return ret end;
 
 	ret = connectBlock(block, fork, blockchain, orphanchain, index)

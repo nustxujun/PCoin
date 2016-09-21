@@ -84,7 +84,7 @@ function BlockChain:store(blockdetail)
 end
 
 function BlockChain:organize()
-	self.organizer:organize();
+	return self.organizer:organize();
 end
 
 -- get block work from HEIGHT to TOP

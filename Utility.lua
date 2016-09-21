@@ -52,41 +52,6 @@ function Utility.blockWork(bits)
 end
 
 
-local targetSpacingSeconds = 10 * 60; -- 10 min
-local targetTimeSpanSeconds = 2* 7 * 24 * 60 * 60 -- 2 week
---The target number of blocks for 2 weeks of work (2016 blocks).
-local retargetingInterval = targetTimeSpanSeconds / targetSpacingSeconds
--- Value used to define retargeting range constraint.
-local retargetingFactor = 4;
-
-local function actualTimeSpan(height, interval,previous,chain)
-	local preInterval = BlockHeader.create(chain:fetchBlockByHeight(height - interval).block.header);
-	return previous.timestamp - preInterval.timestamp;
-end
-
-function Utility.workRequired(height, chain)
-	local previous = BlockHeader.create(chain:fetchBlockDataByHeight(height - 1).block.header);
-	if (height % retargetingInterval) == 0 then
-		local actual = actualTimeSpan(height, retargetingInterval,previous, chain);
-		local upper = targetTimeSpanSeconds * retargetingFactor;
-		local lower = targetTimeSpanSeconds / retargetingFactor;
-
-		local constrained = math.min(math.max(lower, actual), upper);
-
-		local retarget = uint256:new():setCompact(previous.bits);
-		retarget = retarget * constrained;
-		retarget = retarget / targetTimeSpanSeconds;
-
-		if retarget > Constants.maxTarget then
-			retarget = Constants.maxTarget;
-		end
-		
-		return retarget:getCompact();
-	else
-		return previous.bits;
-	end
-end
-
 
 
 function Utility.test()

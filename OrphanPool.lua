@@ -52,13 +52,12 @@ function OrphanPool:remove(blockdetail)
 end
 
 function OrphanPool:unprocessed()
-	local ret = {}
 	for k,v in pairs(self.pool) do
 		if not v:processed() then
-			ret[#ret + 1] = v;
+			return v;
 		end
 	end
-	return ret;
+	return nil;
 end
 
 function OrphanPool:exist(hash)

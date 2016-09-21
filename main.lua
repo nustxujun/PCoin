@@ -29,7 +29,7 @@ local PCoin = commonlib.gettable("Mod.PCoin");
 local function fullnode(seed)
 	local bc = BlockChain.create(Settings.BlockChain);
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
-
+    --bc:report()
     Miner.init(bc, tp);
     Wallet.init(bc, tp , seed);
 
@@ -51,7 +51,10 @@ end
 local function node2()
     fullnode("test")
 
-    Network.connect("127.0.0.1","8099");
+    Network.connect("127.0.0.1","8099",
+        function (nid)
+            Protocol.block_header(nid);
+        end);
 end
 
 function PCoin.node(num)

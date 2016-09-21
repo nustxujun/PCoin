@@ -40,12 +40,19 @@ function Organizer:add(blockdetail)
 end
 
 function Organizer:organize()
-	local process = self.orphans:unprocessed();
-	for k,v in ipairs(process) do
-		if v:isValid() then
-			self:process(v);
+	local blocks = {}
+	while true do
+		local b = self.orphans:unprocessed();
+		if b then
+			for k,v in pairs(self:process(b) or {}) do
+				blocks[#blocks + 1] = v;
+			end
+		else
+			break;
 		end
 	end
+	echo(blocks)
+	return blocks;
 end
 
 function Organizer:process(blockdetail)
@@ -53,11 +60,11 @@ function Organizer:process(blockdetail)
 	local hash = orphanchain:front():getPreHash();
 	local height = self.chain:getHeight(hash);
 	if height then
-		self:replaceChain(height , orphanchain)
+		local blocks = self:replaceChain(height , orphanchain)
 		blockdetail:setProcessed()
+		return blocks
 	else
 		log("[Organizer]process: cannot find previous block in chain(hash: %s)", Utility.HashBytesToString(hash));
-		return "Error:PreviousNotFound";
 	end
 end
 
@@ -94,6 +101,7 @@ function Organizer:replaceChain(fork, orphanchain)
 	--then add the valid orphans to main chain
 	local arrivalindex = fork + 1;
 	local orpahns = self.orpahns;
+	local newBlocks = {}
 	for k,v in orphanchain:iterator() do
 		orphans:remove(v);
 
@@ -101,6 +109,7 @@ function Organizer:replaceChain(fork, orphanchain)
 		arrivalindex = arrivalindex + 1;
 
 		mainchain:push(v);
+		newBlocks[#newBlocks + 1] = v:getHash();
 	end
 
 	--add the old blocks back to the orphan pool
@@ -109,7 +118,7 @@ function Organizer:replaceChain(fork, orphanchain)
 		orphans.add(v);
 	end
 
-
+	return newBlocks
 end
 
 function Organizer:verify(block, fork, index, orphanchain)
@@ -136,7 +145,7 @@ function Organizer:clipOrphans(chain, index)
 end
 
 function Organizer:exist(hash)
-	return self.orphans:exist(hash) ~= nil or self.chain:fetchBlockDataByHash(hash) ~= nil;
+	return self.orphans:exist(hash) or self.chain:fetchBlockDataByHash(hash) ~= nil;
 end
 
 function Organizer:report()
