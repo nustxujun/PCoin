@@ -138,7 +138,7 @@ function Protocol.block(nid, desired, callback)
 end
 
 --{locator = {hash,hash, ... ,hash}}
-function Protocol.block_header(nid)
+function Protocol.block_header(nid,cb)
 	local function getLocator(height)
 		local locator = {}
 		local step = 1
@@ -181,15 +181,17 @@ function Protocol.block_header(nid)
 							Protocol.notifyNewBlock(newblocks, nid);
 						end
 						if msg.top > blockchain:getHeight() then 
-							 Protocol.block_header(nid)
+							 Protocol.block_header(nid,cb)
 						end
 					end);
+			else
+				cb();
 			end
 		elseif tail > 0 then
 			locator, tail = getLocator(tail);
 			request(nid, "block_header", {locator = locator}, callback);
 		else	
-
+			cb();
 		end
 	end
 	request(nid, "block_header", {locator = locator}, callback);
@@ -221,6 +223,7 @@ function Protocol.receive(msg)
 	elseif msg.type == RESPONSE_T then
 		receiver = callbacks[msg.seq];
 		callbacks[msg.seq] = nil;
+		
 	elseif msg.type == NOTIFY_T then 
 		receiver = protocols[name];
 	else
@@ -229,6 +232,9 @@ function Protocol.receive(msg)
 
 	if receiver then
 		receiver(msg);
+	else
+		echo("receiver not found")
+		echo(msg)
 	end
 end
 
@@ -321,14 +327,10 @@ end
 
 protocols.transaction_notify = 
 function (msg)
-	local desired = {};
-	for k,v in ipairs(msg.desired) do
-		if (not transactionpool:get(v)) and 
-			(not blockchain:fetchTransactionData(v)) then 
-			desired[#desired + 1] = v;
-		end
+	if (not transactionpool:get(msg.hash)) and 
+		(not blockchain:fetchTransactionData(v)) then 
+		Protocol.transaction(msg.nid, {msg.hash});
 	end
-	Protocol.transaction(msg.nid, desired);
 end
 
 

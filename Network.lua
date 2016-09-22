@@ -3,10 +3,16 @@
 	local Network = commonlib.gettable("Mod.PCoin.Network");
 ]]
 
+NPL.load("(gl)script/PCoin/Buffer.lua");
+local Buffer = commonlib.gettable("Mod.PCoin.Buffer");
+
+
 local Network =  commonlib.gettable("Mod.PCoin.Network");
 
 local connections = {};
+local newConnPool = Buffer:new();
 local callback ;
+
 
 local function makeAddress(nid)
 	return "(gl)" .. nid .. ":script/PCoin/Network.lua";
@@ -25,16 +31,46 @@ local function loadNetworkSettings()
 	__rts__:SetMsgQueueSize(5000);
 end
 
-function Network.init(port)
+local function loadPeer(filename)
+	local file = ParaIO.open(filename, "r")
+	if file:IsValid() then
+		local line = file:readline();
+		while line do
+			local ip, port = line:match("(%d+.%d+.%d+.%d+) (%d+)")
+			Network.addNewPeer(ip, port);
+			line = file:readline();
+		end
+	end
+end
+
+function Network.init(settings)
 	loadNetworkSettings();
 
 	NPL.AddPublicFile("script/PCoin/Network.lua", 2001);
 
-    port = tostring(port or 8099);
+    port = tostring(settings.port or 8099);
 	NPL.StartNetServer("0.0.0.0", port);
+
+
+	loadPeer(settings.peers)
 end
 
+function Network.addNewPeer(ip, port)
+	Network.connect(ip, port, 
+		function (nid, ret)
+			if ret then
+				newConnPool:push_back(nid)
+			end
+		end)
+end
 
+function Network.getNewPeer()
+	if newConnPool:size() ~= 0 then
+		return newConnPool:pop_front();
+	else
+		return;
+	end
+end
 
 function Network.receive(msg)
 	msg.nid = msg.nid or msg.tid;
@@ -140,8 +176,12 @@ timer:Change(5000,5000);
 local function activate()
 	local msg = msg;
 	local id = msg.nid or msg.tid;
+
 	if msg.service == "PCoin" then
-		connections[id] = true;
+		if not connections[id] then  
+			newConnPool:push_back(id);
+			connections[id] = true
+		end
 		Network.receive(msg)
 	end
 end

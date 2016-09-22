@@ -37,7 +37,7 @@ function Miner.generateBlock()
 	local topblock = blockchain:fetchBlockDataByHeight(top);
 	local preheader = BlockHeader.create(topblock.block.header);
 
-	local curTarget = Utility.workRequired(top + 1, blockchain);
+	local curTarget = preheader.bits;
 
 
 	local header = BlockHeader:new();

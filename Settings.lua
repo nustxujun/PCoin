@@ -23,3 +23,8 @@ Settings.TransactionPool =
 
 }
 
+Settings.Network = 
+{
+    port = 8099,
+    peers = "peers.txt",
+}

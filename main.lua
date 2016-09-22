@@ -62,17 +62,7 @@ function PCoin.node(num)
     nodes[num]();
 end
 
-function PCoin.mine()
-    Miner.generateBlock();
-end
 
-function PCoin.pay(value, keys)
-    Wallet.pay(value, keys);
-end
-
-function PCoin.connect(ip, port)
-    Network.connect(ip or "127.0.0.1", port or "8099")
-end
 
 function PCoin.report()
     Wallet.report();

@@ -52,6 +52,10 @@ function Utility.blockWork(bits)
 end
 
 
+function Utility.workRequired()
+	
+end
+
 
 
 function Utility.test()
