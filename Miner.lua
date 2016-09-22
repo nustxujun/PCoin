@@ -16,6 +16,7 @@ local Block = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Block"));
 local BlockDetail = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockDetail"));
 local BlockHeader = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockHeader"));
 local Miner = commonlib.gettable("Mod.PCoin.Miner");
+local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 
 local blockchain = nil
 local transactionpool = nil;
@@ -37,7 +38,10 @@ function Miner.generateBlock()
 	local topblock = blockchain:fetchBlockDataByHeight(top);
 	local preheader = BlockHeader.create(topblock.block.header);
 
-	local curTarget = preheader.bits;
+	local function fetchHeader(height)
+		return BlockHeader.create(blockchain:fetchBlockDataByHeight(height).block.header)
+	end
+	local curTarget = Utility.workRequired(topblock.height + 1, fetchHeader);
 
 
 	local header = BlockHeader:new();
@@ -85,7 +89,11 @@ function Miner.store(block)
 	
 	local blockdetail = BlockDetail.create(block);
 	blockchain:store(blockdetail);
-	blockchain:organize();
+	local newblocks = blockchain:organize();
+	echo(newblocks)
+	if #newblocks ~= 0 then
+		Protocol.notifyNewBlock(newblocks);
+	end
 end
 
 function Miner.mine(block,  CPPsupported)

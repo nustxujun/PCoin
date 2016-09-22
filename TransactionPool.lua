@@ -117,7 +117,6 @@ function (pool, blockdetail)
 	for i, t in pairs(blockdetail.block.transactions) do
 		pool:remove(t)
 	end
-
 end
 
 events.PopBlock = 

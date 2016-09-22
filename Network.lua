@@ -56,6 +56,9 @@ function Network.init(settings)
 end
 
 function Network.addNewPeer(ip, port)
+	if connections[ip .. port] then
+		return;
+	end
 	Network.connect(ip, port, 
 		function (nid, ret)
 			if ret then
@@ -179,7 +182,7 @@ local function activate()
 
 	if msg.service == "PCoin" then
 		if not connections[id] then  
-			newConnPool:push_back(id);
+			--newConnPool:push_back(id);
 			connections[id] = true
 		end
 		Network.receive(msg)

@@ -84,8 +84,8 @@ function PCoin.step(input, ...)
     end
 
     echo("step to " .. input)
-    PCoin[input](...)
     curState = states[input];
+    PCoin[input](...)
 end
 
 function PCoin.selectPath()
@@ -93,12 +93,13 @@ function PCoin.selectPath()
     if nid then
         PCoin.step("verifyNewPeer", nid);
     else
+
     end
 
-    local sleep = commonlib.Timer:new({callbaclFunc = 
-        function () PCoin.step("selectPath"); end})
+    local sleep = commonlib.Timer:new({callbackFunc = 
+        function (t) t:Change(); PCoin.step("selectPath"); end})
 
-    sleep:Change(10000);
+    sleep:Change(3000);
 end
 
 function PCoin.verifyNewPeer(nid)

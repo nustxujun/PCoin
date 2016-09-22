@@ -7,7 +7,9 @@ NPL.load("(gl)script/PCoin/Database.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/Organizer.lua");
 NPL.load("(gl)script/PCoin/uint256.lua");
+NPL.load("(gl)script/PCoin/Block.lua");
 
+local BlockDetail = commonlib.gettable("Mod.PCoin.BlockDetail");
 local uint256 = commonlib.gettable("Mod.PCoin.uint256");
 local Organizer = commonlib.gettable("Mod.PCoin.Organizer");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");

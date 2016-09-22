@@ -115,7 +115,7 @@ function Organizer:replaceChain(fork, orphanchain)
 	--add the old blocks back to the orphan pool
 	for k,v in ipairs(releasedblocks) do
 		v:setProcessed();
-		orphans.add(v);
+		orphans:add(v);
 	end
 
 	return newBlocks
