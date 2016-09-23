@@ -31,10 +31,11 @@ local PCoin = commonlib.gettable("Mod.PCoin");
 local curState; 
 local states = 
 {
-    selectPath = {verifyNewPeer = true, selectPath = true},
+    selectPath = {verifyNewPeer = true, mine = true,selectPath = true},
     verifyNewPeer = {updateNodeAddress = true},
     updateNodeAddress = {updateBlocks = true},
     updateBlocks = {selectPath = true},
+    mine = {selectPath = true}
 }
 
 local function fullnode(seed)
@@ -59,10 +60,6 @@ function PCoin.start()
 end
 
 function PCoin.stop()
-end
-
-function PCoin.mine()
-    Miner.generateBlock();
 end
 
 function PCoin.generateKeys(num)
@@ -92,14 +89,16 @@ function PCoin.selectPath()
     local nid =  Network.getNewPeer() 
     if nid then
         PCoin.step("verifyNewPeer", nid);
+    elseif Miner.isCPPSupported() then
+        PCoin.step("mine");
     else
+        local sleep = commonlib.Timer:new({callbackFunc = 
+        function (t)  PCoin.selectPath(); end})
 
+        sleep:Change(5000);
     end
 
-    local sleep = commonlib.Timer:new({callbackFunc = 
-        function (t) t:Change(); PCoin.step("selectPath"); end})
 
-    sleep:Change(3000);
 end
 
 function PCoin.verifyNewPeer(nid)
@@ -126,4 +125,23 @@ function PCoin.updateBlocks(nid)
         function ()
             PCoin.step("selectPath");
         end);
+end
+
+
+function PCoin.mine()
+    Miner.generateBlock(
+        function ()
+            PCoin.step("selectPath");
+        end);
+end
+
+
+--------------------------------------------------------------
+
+function PCoin.test()
+    PCoin.init("wallet password")
+
+    PCoin.start();
+
+    PCoin.connect("127.0.0.1", "8099")
 end

@@ -53,10 +53,58 @@ function Network.init(settings)
 
 
 	loadPeer(settings.peers)
+
+
+	NPL.load("(gl)script/ide/timer.lua");
+	local timer = commonlib.Timer:new({callbackFunc = Network.recycle})
+	timer:Change(5000,5000);
 end
 
+local ping_msg = {service="PCoin"};
+local lastnid = 1000;
+local addressTonid = {};
+function Network.connect(ip, port, cb)
+	local key = ip .. port;
+	local nid = addressTonid[key];
+	if not nid then
+		nid = tostring(lastnid);
+		addressTonid[key] = nid;
+		lastnid = lastnid + 1;
+
+		local paras = {host = tostring(ip), port = tostring(port), nid = nid};
+		NPL.AddNPLRuntimeAddress(paras);
+		connections[nid] = true
+	end
+
+
+	local intervals = {100, 300,500, 1000, 1000, 1000, 1000}; -- intervals to try
+	local try_count = 0;
+	local address = makeAddress(nid);
+	local mytimer = commonlib.Timer:new({callbackFunc = function(timer)
+		try_count = try_count + 1;
+		if(NPL.activate(address, ping_msg) ~=0) then
+			if(intervals[try_count]) then
+				timer:Change(intervals[try_count], nil);
+			else
+				echo("PCoin ConnectionNotEstablished");
+				if cb then
+					cb(nid, false);
+				end
+			end	
+		else
+			if cb then
+				cb(nid,true);
+			end
+		end
+	end})
+	mytimer:Change(10, nil);
+	return 0;
+end
+
+
 function Network.addNewPeer(ip, port)
-	if connections[ip .. port] then
+	local nid = addressTonid[ip .. port];
+	if nid and connections[nid]then
 		return;
 	end
 	Network.connect(ip, port, 
@@ -112,45 +160,6 @@ function Network.register(cb)
 	callback = cb
 end
 
-local ping_msg = {service="PCoin"};
-local lastnid = 1000;
-local addressTonid = {};
-function Network.connect(ip, port, cb)
-	local key = ip .. port;
-	local nid = addressTonid[key];
-	if not nid then
-		nid = tostring(lastnid);
-		addressTonid[key] = nid;
-		lastnid = lastnid + 1;
-
-		local paras = {host = tostring(ip), port = tostring(port), nid = nid};
-		NPL.AddNPLRuntimeAddress(paras);
-	end
-
-
-	local intervals = {100, 300,500, 1000, 1000, 1000, 1000}; -- intervals to try
-	local try_count = 0;
-	local address = makeAddress(nid);
-	local mytimer = commonlib.Timer:new({callbackFunc = function(timer)
-		try_count = try_count + 1;
-		if(NPL.activate(address, ping_msg) ~=0) then
-			if(intervals[try_count]) then
-				timer:Change(intervals[try_count], nil);
-			else
-				echo("PCoin ConnectionNotEstablished");
-				if cb then
-					cb(nid, false);
-				end
-			end	
-		else
-			if cb then
-				cb(nid,true);
-			end
-		end
-	end})
-	mytimer:Change(10, nil);
-	return 0;
-end
 
 local rec = {};
 function Network.collect(nid)
@@ -158,12 +167,16 @@ function Network.collect(nid)
 end
 
 function Network.recycle()
-	if #rec then
+	if not next(rec) then
 		return 
 	end
 
 	for k,v in pairs(rec) do 
-		connections[nid] = nil;
+		connections[k] = nil;
+		local _, index = newConnPool:find(k);
+		if index then 
+			newConnPool:erase(index)
+		end
 		NPL.reject(k)
 		echo("close connection ".. k)
 	end
@@ -171,9 +184,7 @@ function Network.recycle()
 	rec = {};
 end
 
-NPL.load("(gl)script/ide/timer.lua");
-local timer = commonlib.Timer:new({callbackFunc = Network.recycle})
-timer:Change(5000,5000);
+
 
 
 local function activate()
@@ -182,7 +193,7 @@ local function activate()
 
 	if msg.service == "PCoin" then
 		if not connections[id] then  
-			--newConnPool:push_back(id);
+			newConnPool:push_back(id);
 			connections[id] = true
 		end
 		Network.receive(msg)

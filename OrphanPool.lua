@@ -67,6 +67,4 @@ end
 function OrphanPool:report()
 	echo("OrphanPool")
 	echo("	orphan size:".. #self.pool)
-	local q = self:unprocessed();
-	echo("	unprocessed orphan size:" .. #q);
 end

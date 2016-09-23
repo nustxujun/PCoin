@@ -31,7 +31,7 @@ end
 
 
 
-function Miner.generateBlock()
+function Miner.generateBlock(callback)
 	Miner.stop();
 
 	local top = blockchain:getHeight();
@@ -57,7 +57,7 @@ function Miner.generateBlock()
 	block.transactions = transactionpool:getAll();
 	header.merkle = block:generateMerkleRoot();
 
-	Miner.mine(block,true)
+	Miner.mine(block,callback,true)
 end
 
 
@@ -73,17 +73,6 @@ function Miner.start()
 
 end
 
-function Miner.proofofwork(block)
-	local nonce = NPL.getValidPOW();
-	if nonce ~= 0 then
-		Miner.stop();
-		block.header.nonce = nonce;
-		Miner.store(block);
-
-		Miner.generateBlock();
-	end
-end
-
 function Miner.store(block)
 	Utility.log("stop mining, nonce: %d", block.header.nonce)
 	
@@ -96,14 +85,24 @@ function Miner.store(block)
 	end
 end
 
-function Miner.mine(block,  CPPsupported)
+function Miner.isCPPSupported()
+	return NPL.ProofOfWork ~= nil;
+end
+
+function Miner.mine(block, callback, cpp)
 	Utility.log("begin mining, target: %x", block.header.bits)
 
-	if CPPsupported and NPL.ProofOfWork then
+	if cpp and Miner.isCPPSupported() then
 		NPL.ProofOfWork(NPL.SerializeToSCode("",block.header:toData()) , block.header.bits);
 		timer = commonlib.Timer:new({callbackFunc = 
 		function ()
-			Miner.proofofwork(block);
+			local nonce = NPL.getValidPOW();
+			if nonce ~= 0 then
+				Miner.stop();
+				block.header.nonce = nonce;
+				Miner.store(block);
+				callback();
+			end
 		end});
 		timer:Change(1000, 1000);
 	else
@@ -121,5 +120,6 @@ function Miner.mine(block,  CPPsupported)
 			nonce = nonce + 1;
 		end
 		Miner.store(block);
+		callback();
 	end
 end

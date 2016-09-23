@@ -44,14 +44,13 @@ function Organizer:organize()
 	while true do
 		local b = self.orphans:unprocessed();
 		if b then
-			for k,v in pairs(self:process(b) or {}) do
+			for k,v in pairs(self:process(b)) do
 				blocks[#blocks + 1] = v;
 			end
 		else
 			break;
 		end
 	end
-	echo(blocks)
 	return blocks;
 end
 
@@ -59,13 +58,14 @@ function Organizer:process(blockdetail)
 	local orphanchain = self.orphans:trace(blockdetail);
 	local hash = orphanchain:front():getPreHash();
 	local height = self.chain:getHeight(hash);
+	local blocks;
 	if height then
-		local blocks = self:replaceChain(height , orphanchain)
-		blockdetail:setProcessed()
-		return blocks
+		blocks = self:replaceChain(height , orphanchain)
 	else
 		log("[Organizer]process: cannot find previous block in chain(hash: %s)", Utility.HashBytesToString(hash));
 	end
+	blockdetail:setProcessed()
+	return blocks or {}
 end
 
 function Organizer:replaceChain(fork, orphanchain)

@@ -172,17 +172,25 @@ function Protocol.block_header(nid,cb)
 			if #desired ~= 0 then
 				Protocol.block(nid,  desired,
 					function (msg)
+						local lastHash ;
 						for k,v in ipairs(msg.desired) do 
 							local bd = BlockDetail.create(Block.create(v));
 							blockchain:store(bd);
+							lastHash = bd:getHash();
 						end
 						local newblocks = blockchain:organize();
 						if #newblocks ~= 0 then
 							Protocol.notifyNewBlock(newblocks, nid);
+						elseif lastHash then
+							request(nid, "block_header", {locator = {lastHash}}, callback);
+							return;
+						else
+							--peer mainchain may be changed from others
+							--reconfirm it
 						end
-						if msg.top > blockchain:getHeight() then 
-							 Protocol.block_header(nid,cb)
-						end
+							
+						Protocol.block_header(nid,cb)
+						
 					end);
 			else
 				cb();
@@ -191,6 +199,7 @@ function Protocol.block_header(nid,cb)
 			locator, tail = getLocator(tail);
 			request(nid, "block_header", {locator = locator}, callback);
 		else	
+			echo("warning: another MAIN CHAIN is existed which has different genesis block!")
 			cb();
 		end
 	end
@@ -280,15 +289,16 @@ function (msg)
 	if msg.type == REQUEST_T then
 		local headers = {};
 		local top = blockchain:getHeight();
-		local max_num = math.min(100, top);
 		for k,v in pairs(msg.locator) do
 			local height = blockchain:getHeight(v);
 			if height then
+				local max_num = math.min(height + 10, top);
 				for i = height + 1, max_num do 
 					local data = blockchain:fetchBlockDataByHeight(i);
 					headers[#headers + 1] = data.hash;
 				end
 				break;
+			else
 			end
 		end
 		response(msg.nid, msg.seq, {headers = headers});

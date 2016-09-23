@@ -1,19 +1,13 @@
 
 
 --[[
+	coinbase
 
-	network(connection)
-
-	mining
-
-	wallet
-
-	encryption algorithm
+	auto trading
 
 	script 
 
 
-	unit testing
 	...
 
 ]]
