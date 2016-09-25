@@ -3,13 +3,13 @@
 	local Utility = commonlib.gettable("Mod.PCoin.Utility");
 ]]
 
-NPL.load("(gl)script/Pcoin/sha256.lua");
-NPL.load("(gl)script/PCoin/uint256.lua");
+NPL.load("(gl)script/PCoin/math/sha256.lua");
+NPL.load("(gl)script/PCoin/math/uint256.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
 
 local Constants = commonlib.gettable("Mod.PCoin.Constants");	
 local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader");
-local uint256 = commonlib.gettable("Mod.PCoin.uint256");
+local uint256 = commonlib.gettable("Mod.PCoin.math.uint256");
 local Encoding = commonlib.gettable("System.Encoding");
 local sha256 = Encoding.sha256;
 
@@ -61,7 +61,7 @@ local retargetingFactor = 4;
 -- previous, preInterval : BlockHeader
 function Utility.workRequired(height, fetchBlockHeader)
 	local previous = fetchBlockHeader(height - 1);
-	if (height % retargetingInterval) == 0 then
+	if ( (height + 1) % retargetingInterval) == 0 then
 		local preInterval = fetchBlockHeader(height - retargetingInterval);
 		local actual = previous.timestamp - preInterval.timestamp;
 		local upper = targetTimeSpanSeconds * retargetingFactor;

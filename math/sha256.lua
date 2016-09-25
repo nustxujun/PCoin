@@ -1,13 +1,13 @@
 --[[
 
-  NPL.load("(gl)script/Pcoin/sha256.lua");
+  NPL.load("(gl)script/PCoin/math/sha256.lua");
   local Encoding = commonlib.gettable("System.Encoding");
 
 based on:
   http://lua-users.org/wiki/SecureHashAlgorithm
 
 use:
-    NPL.load("(gl)script/Pcoin/sha256.lua");
+    NPL.load("(gl)script/PCoin/math/sha256.lua");
     local Encoding = commonlib.gettable("System.Encoding");
 
     Encoding.sha256("The quick brown fox jumps over the lazy dog")

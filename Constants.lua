@@ -3,9 +3,9 @@
 	local Constants = commonlib.gettable("Mod.PCoin.Constants");
 ]]
 
-NPL.load("(gl)script/PCoin/uint256.lua");
+NPL.load("(gl)script/PCoin/math/uint256.lua");
 
-local uint256 = commonlib.gettable("Mod.PCoin.uint256");
+local uint256 = commonlib.gettable("Mod.PCoin.math.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 
 Constants.curVersion = 1000;

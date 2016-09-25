@@ -48,6 +48,16 @@ local function fullnode(seed)
     Network.init(Settings.Network);
     Protocol.init(bc, tp);
 end
+
+local function miningprocess()
+    Network.init(Settings.Network);
+    Protocol.init();
+end
+
+
+
+
+
  
 
 function PCoin.init(key)

@@ -54,10 +54,13 @@ function TransactionPool:get(hash)
 	return self.trans:find(function (t) return t:hash() == hash ;end)
 end
 
-function TransactionPool:getAll()
+function TransactionPool:getByCount(count)
 	local ret = {}
-	for k,v in self.trans:iterator() do
-		ret[#ret + 1] = v;
+
+	count = count or trans:size();
+	local trans = self.trans;
+	for i = 1 to math.min(count, trans:size()) do
+		ret[#ret + 1] = trans:get(i);
 	end
 	return ret;
 end

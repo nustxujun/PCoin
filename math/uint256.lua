@@ -1,6 +1,6 @@
 --[[
-	NPL.load("(gl)script/PCoin/uint256.lua");
-	local uint256 = commonlib.gettable("Mod.PCoin.uint256");
+	NPL.load("(gl)script/PCoin/math/uint256.lua");
+	local uint256 = commonlib.gettable("Mod.PCoin.math.uint256");
 
 compact:
     0x1b0404cb ----> 0x0404cb * 2^(8*( 0x1b - 3)) = 0x00000000000404CB000000000000000000000000000000000000000000000000   
@@ -24,7 +24,7 @@ local bnot = mathlib.bit.bnot
 local rshift = mathlib.bit.rshift;
 local lshift = mathlib.bit.lshift;
 
-local uint256 = commonlib.gettable("Mod.PCoin.uint256");
+local uint256 = commonlib.gettable("Mod.PCoin.math.uint256");
 
 local WIDTH = 32;
 

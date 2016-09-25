@@ -3,14 +3,14 @@
 	local Miner = commonlib.gettable("Mod.PCoin.Miner");
 ]]
 NPL.load("(gl)script/PCoin/Block.lua");
-NPL.load("(gl)script/PCoin/uint256.lua");
+NPL.load("(gl)script/PCoin/math/uint256.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local Encoding = commonlib.gettable("System.Encoding");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
-local uint256 = commonlib.gettable("Mod.PCoin.uint256");
+local uint256 = commonlib.gettable("Mod.PCoin.math.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local Block = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Block"));
 local BlockDetail = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.BlockDetail"));
@@ -21,7 +21,7 @@ local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 local blockchain = nil
 local transactionpool = nil;
 local timer = nil;
-
+local miningServiceNid = nil;
 
 
 function Miner.init(chain, pool)
@@ -49,15 +49,23 @@ function Miner.generateBlock(callback)
 	header.preBlockHash = preheader:hash();
 	header.timestamp = os.time();
 	header.bits = curTarget 
-	header.merkle = ""
+	header.merkle = "calculate after creating block"
 	header.nonce = "default";
 
 	local block = Block:new();
 	block.header = header;
-	block.transactions = transactionpool:getAll();
+	block.transactions = transactionpool:getByCount();
 	header.merkle = block:generateMerkleRoot();
 
-	Miner.mine(block,callback,true)
+
+	Miner.mine(block.header,
+		function (nonce)
+			block.header.nonce = nonce;
+
+			Miner.store(block);
+			callback();
+		end
+	)
 end
 
 
@@ -69,13 +77,7 @@ function Miner.stop()
 
 end
 
-function Miner.start()
-
-end
-
 function Miner.store(block)
-	Utility.log("stop mining, nonce: %d", block.header.nonce)
-	
 	local blockdetail = BlockDetail.create(block);
 	blockchain:store(blockdetail);
 	local newblocks = blockchain:organize();
@@ -89,26 +91,35 @@ function Miner.isCPPSupported()
 	return NPL.ProofOfWork ~= nil;
 end
 
-function Miner.mine(block, callback, cpp)
-	Utility.log("begin mining, target: %x", block.header.bits)
+function Minir.isMiningServiceSurpported();
+	return miningServiceNid ~= nil;
+end
 
-	if cpp and Miner.isCPPSupported() then
-		NPL.ProofOfWork(NPL.SerializeToSCode("",block.header:toData()) , block.header.bits);
+function Miner.mine(header, callback)
+	Utility.log("begin mining, target: %x", header.bits)
+
+	if Miner.isCPPSupported() then
+		NPL.ProofOfWork(NPL.SerializeToSCode("",header:toData()) , header.bits);
 		timer = commonlib.Timer:new({callbackFunc = 
 		function ()
 			local nonce = NPL.getValidPOW();
 			if nonce ~= 0 then
 				Miner.stop();
-				block.header.nonce = nonce;
-				Miner.store(block);
-				callback();
+				header.nonce = nonce;
+				Utility.log("stop mining, nonce: %d", nonce)
+				
+				callback(nonce);
 			end
 		end});
 		timer:Change(1000, 1000);
+	if Miner.isMiningServiceSurpported() then
+		Protocol.mining_service(miningServiceNid, {header = header}, 
+			function (msg)
+				callback(msg.nonce);
+			end)
 	else
-		local target = uint256:new():setCompact(block.header.bits);
-		local header = block.header;
-		nonce = 1;
+		local target = uint256:new():setCompact(header.bits);
+		local nonce = 1;
 		local hash = uint256:new();
 		while true do 
 			header.nonce = nonce;
@@ -119,7 +130,7 @@ function Miner.mine(block, callback, cpp)
 			end
 			nonce = nonce + 1;
 		end
-		Miner.store(block);
-		callback();
+		Utility.log("stop mining, nonce: %d", nonce)
+		callback(nonce);
 	end
 end

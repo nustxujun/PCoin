@@ -3,7 +3,7 @@
 --[[
 	coinbase
 
-	auto trading
+	SPV
 
 	script 
 

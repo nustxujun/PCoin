@@ -3,7 +3,7 @@
 	local Script = commonlib.gettable("Mod.PCoin.Script");
 ]]
 
-NPL.load("(gl)script/Pcoin/sha256.lua");
+NPL.load("(gl)script/PCoin/math/sha256.lua");
 local Encoding = commonlib.gettable("System.Encoding");
 local hash = Encoding.sha256;
 

@@ -32,8 +32,10 @@ local protocols =
 	"block",
 	"block_header",
 	"transaction_notify",
-	"transaction"
+	"transaction",
 
+	--ext
+	"mining_service",
 }
 
 local protocolmap = {}
@@ -216,6 +218,9 @@ function Protocol.transaction(nid, desired)
 		end);
 end
 
+function Protocol.mining_service(nid, header, callback)
+	request(nid, "mining_service", {header = header}, callback);
+end
 
 --response------------------------------------------------------------------------------
 local function response(nid, seq, msg)
@@ -343,6 +348,15 @@ function (msg)
 	end
 end
 
+protocols.mining_service = 
+function (msg)
+	local Miner = commonlib.gettable("Mod.PCoin.Miner");
+	local header = msg.header;
+	Miner.mine(msg.header, 
+		function (nonce)
+			response(msg.nid, msg.seq, {nonce = nonce});
+		end)
+end
 
 
 --broadcast-------------------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 ]]
 
 
-NPL.load("(gl)script/Pcoin/sha256.lua");
+NPL.load("(gl)script/PCoin/math/sha256.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/Transaction.lua");
 NPL.load("(gl)script/PCoin/Output.lua");
@@ -12,7 +12,9 @@ NPL.load("(gl)script/PCoin/Input.lua");
 NPL.load("(gl)script/PCoin/Point.lua");
 NPL.load("(gl)script/PCoin/Script.lua");
 NPL.load("(gl)script/PCoin/Protocol.lua");
+NPL.load("(gl)script/PCoin/Buffer.lua");
 
+local Buffer = commonlib.gettable("Mod.PCoin.Buffer");
 local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 local Script = commonlib.gettable("Mod.PCoin.Script");
 local Point = commonlib.gettable("Mod.PCoin.Point");
@@ -27,9 +29,7 @@ local Wallet = commonlib.gettable("Mod.PCoin.Wallet.Wallet");
 
 local blockchain
 local transactionPool;
-local package;
 local wallet;
-local unconfirmed;
 local nextKey;
 local seed;
 
@@ -46,10 +46,8 @@ function Wallet.init(chain, pool, start, lastKey)
     nextKey = start;
     blockchain = chain;
     transactionPool = pool
-    unconfirmed = {};
     wallet = {}
     wallet.coins , wallet.total = Wallet.collectCoins(seed, lastKey);
-
     Wallet.report();
 end
 

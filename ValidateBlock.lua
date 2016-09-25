@@ -6,13 +6,13 @@
 NPL.load("(gl)script/PCoin/Utility.lua");
 NPL.load("(gl)script/PCoin/ValidateTransaction.lua");
 NPL.load("(gl)script/PCoin/Constants.lua");
-NPL.load("(gl)script/PCoin/uint256.lua");
+NPL.load("(gl)script/PCoin/math/uint256.lua");
 NPL.load("(gl)script/PCoin/Transaction.lua");
 NPL.load("(gl)script/PCoin/Block.lua");
 
 local BlockHeader = commonlib.gettable("Mod.PCoin.BlockHeader");
 local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
-local uint256 = commonlib.gettable("Mod.PCoin.uint256");
+local uint256 = commonlib.gettable("Mod.PCoin.math.uint256");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 local ValidateTransaction = commonlib.gettable("Mod.PCoin.ValidateTransaction");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
