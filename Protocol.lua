@@ -60,7 +60,7 @@ end
 
 local function send(nid, msg)
 	msg.module = "internal"
-	Network.send(nid, msg);
+	return Network.send(nid, msg);
 end
 
 local function broadcast(msg, exclude)
@@ -105,7 +105,7 @@ local function request(nid, name, msg, callback)
 	msg[1] = name
 	callbacks[msg.seq] = callback
 
-	send(nid, msg)
+	return send(nid, msg)
 end
 
 --{timestamp = 0, }
@@ -219,7 +219,7 @@ function Protocol.transaction(nid, desired)
 end
 
 function Protocol.mining_service(nid, header, callback)
-	request(nid, "mining_service", {header = header}, callback);
+	return request(nid, "mining_service", {header = header}, callback);
 end
 
 --response------------------------------------------------------------------------------
@@ -351,8 +351,7 @@ end
 protocols.mining_service = 
 function (msg)
 	local Miner = commonlib.gettable("Mod.PCoin.Miner");
-	local header = msg.header;
-	Miner.mine(msg.header, 
+	Miner.mine(BlockHeader.create(msg.header), 
 		function (nonce)
 			response(msg.nid, msg.seq, {nonce = nonce});
 		end)

@@ -15,7 +15,7 @@ local callback ;
 
 
 local function makeAddress(nid)
-	return "(gl)" .. nid .. ":script/PCoin/Network.lua";
+	return "(gl)" .. (nid or "nid(nil)") .. ":2001";
 end
 
 local function loadNetworkSettings()
@@ -144,7 +144,10 @@ function Network.send(nid, msg)
 	if NPL.activate(makeAddress(nid), msg) ~= 0 then
 		echo({"warning: cannot send msg to ",nid})
 		Network.collect(nid);
+		return false;
 	end
+
+	return true
 end
 
 local send = Network.send;

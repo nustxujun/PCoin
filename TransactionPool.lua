@@ -57,9 +57,9 @@ end
 function TransactionPool:getByCount(count)
 	local ret = {}
 
-	count = count or trans:size();
 	local trans = self.trans;
-	for i = 1 to math.min(count, trans:size()) do
+	count = count or trans:size();
+	for i = 1 , math.min(count, trans:size()) do
 		ret[#ret + 1] = trans:get(i);
 	end
 	return ret;

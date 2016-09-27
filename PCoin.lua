@@ -1,6 +1,8 @@
 --[[
     NPL.load("(gl)script/PCoin/PCoin.lua");
 	local PCoin = commonlib.gettable("Mod.PCoin");
+    PCoin.init("test");
+    PCoin.start()
 ]]
 
 NPL.load("(gl)script/PCoin/BlockChain.lua");
@@ -41,12 +43,12 @@ local states =
 local function fullnode(seed)
 	local bc = BlockChain.create(Settings.BlockChain);
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
-
     Miner.init(bc, tp);
     Wallet.init(bc, tp , seed);
 
     Network.init(Settings.Network);
     Protocol.init(bc, tp);
+
 end
 
 local function miningprocess()
@@ -90,16 +92,21 @@ function PCoin.step(input, ...)
         return 
     end
 
-    echo("step to " .. input)
-    curState = states[input];
-    PCoin[input](...)
+    local paras = {...}
+    local nextFrame = commonlib.Timer:new({callbackFunc = 
+        function ()
+            echo("step to " .. input)
+            curState = states[input];
+            PCoin[input](paras[1], paras[2], paras[3], paras[4],paras[5])
+        end});
+    nextFrame:Change(1);
 end
 
 function PCoin.selectPath()
     local nid =  Network.getNewPeer() 
     if nid then
         PCoin.step("verifyNewPeer", nid);
-    elseif Miner.isCPPSupported() then
+    elseif Miner.isCPPSupported() or Miner.isMiningServiceSurpported() then
         PCoin.step("mine");
     else
         local sleep = commonlib.Timer:new({callbackFunc = 
@@ -142,7 +149,7 @@ function PCoin.mine()
     Miner.generateBlock(
         function ()
             PCoin.step("selectPath");
-        end);
+        end) 
 end
 
 

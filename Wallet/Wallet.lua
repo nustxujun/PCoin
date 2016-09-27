@@ -24,7 +24,7 @@ local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local Encoding = commonlib.gettable("System.Encoding");
 local makePublicKey = Encoding.sha224;
-local makePrivateKey = Encoding.sha256
+local makePrivateKey = Encoding.sha224
 local Wallet = commonlib.gettable("Mod.PCoin.Wallet.Wallet");
 
 local blockchain
@@ -35,7 +35,7 @@ local seed;
 
 local function makeKey()
     -- make key chain
-    nextKey = Encoding.sha256(nextKey);
+    nextKey = Encoding.sha256(nextKey,"string");
     
     local private = makePrivateKey(nextKey, "string");
     return makePublicKey(private,"string"), private
@@ -141,7 +141,7 @@ function Wallet.collectCoins(start, lastKey)
     end
 
     while true do  
-        key = Encoding.sha256(key);
+        key = Encoding.sha256(key,"string");
         local private = makePrivateKey(key, "string");
         local public = makePublicKey(private,"string");
         local historydata = blockchain:fetchHistoryData(public);

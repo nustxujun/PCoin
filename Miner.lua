@@ -63,9 +63,10 @@ function Miner.generateBlock(callback)
 			block.header.nonce = nonce;
 
 			Miner.store(block);
-			callback();
-		end
-	)
+			if callback then
+				callback();
+			end
+		end)
 end
 
 
@@ -91,8 +92,12 @@ function Miner.isCPPSupported()
 	return NPL.ProofOfWork ~= nil;
 end
 
-function Minir.isMiningServiceSurpported();
+function Miner.isMiningServiceSurpported()
 	return miningServiceNid ~= nil;
+end
+
+function Miner.setMiningServiceNid(nid)
+	miningServiceNid = nid;
 end
 
 function Miner.mine(header, callback)
@@ -112,8 +117,8 @@ function Miner.mine(header, callback)
 			end
 		end});
 		timer:Change(1000, 1000);
-	if Miner.isMiningServiceSurpported() then
-		Protocol.mining_service(miningServiceNid, {header = header}, 
+	elseif Miner.isMiningServiceSurpported() then
+		Protocol.mining_service(miningServiceNid, header, 
 			function (msg)
 				callback(msg.nonce);
 			end)

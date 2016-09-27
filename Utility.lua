@@ -61,7 +61,8 @@ local retargetingFactor = 4;
 -- previous, preInterval : BlockHeader
 function Utility.workRequired(height, fetchBlockHeader)
 	local previous = fetchBlockHeader(height - 1);
-	if ( (height + 1) % retargetingInterval) == 0 then
+
+	if ( (height - 1) % retargetingInterval) == 0 then
 		local preInterval = fetchBlockHeader(height - retargetingInterval);
 		local actual = previous.timestamp - preInterval.timestamp;
 		local upper = targetTimeSpanSeconds * retargetingFactor;
@@ -72,7 +73,7 @@ function Utility.workRequired(height, fetchBlockHeader)
 		local retarget = uint256:new():setCompact(previous.bits);
 		retarget = retarget * constrained;
 		retarget = retarget / targetTimeSpanSeconds;
-
+		
 		if retarget > Constants.maxTarget then
 			retarget = Constants.maxTarget;
 		end
