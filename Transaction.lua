@@ -96,7 +96,7 @@ function Transaction.ONEPIECE()
 
 	local output = Output:new()
 	output.value = Constants.maxMoney;
-	output.script = Script.create("9e0c73484592493f02cf4913e24e4a950077b19f879a276324916864"); 
+	output.script = Script.create("e841c89ee181428be07efc79b5fb1773f4289548d1d94afc1e359d3e"); 
 	tx.outputs[1] = output;
 
 	return tx
