@@ -13,7 +13,7 @@ use:
     Encoding.sha256("The quick brown fox jumps over the lazy dog")
     
 ]]
-
+NPL.load("(gl)script/ide/commonlib.lua");
 NPL.load("(gl)script/ide/math/bit.lua");
 local Encoding = commonlib.gettable("System.Encoding");
 

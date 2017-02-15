@@ -22,11 +22,13 @@ local blockchain = nil
 local transactionpool = nil;
 local timer = nil;
 local miningServiceNid = nil;
-
+local thread = "miner01"
 
 function Miner.init(chain, pool)
 	blockchain = chain
 	transactionpool = pool;
+
+	NPL.CreateRuntimeState(thread, 0):Start();
 end
 
 
@@ -92,12 +94,32 @@ function Miner.isCPPSupported()
 	return NPL.ProofOfWork ~= nil;
 end
 
-function Miner.isMiningServiceSurpported()
+function Miner.isMiningServiceSupported()
 	return miningServiceNid ~= nil;
+end
+
+function Miner.isAsyncModeSupported()
+	return true
 end
 
 function Miner.setMiningServiceNid(nid)
 	miningServiceNid = nid;
+end
+
+function mine(header)
+	local target = uint256:new():setCompact(header.bits);
+	local nonce = 1;
+	local hash = uint256:new();
+	while true do 
+		header.nonce = nonce;
+		hash:setHash(BlockHeader.hash(header, true));
+
+		if (hash <= target ) then
+			break;
+		end
+		nonce = nonce + 1;
+	end
+	return nonce;
 end
 
 function Miner.mine(header, callback)
@@ -117,25 +139,28 @@ function Miner.mine(header, callback)
 			end
 		end});
 		timer:Change(1000, 1000);
-	elseif Miner.isMiningServiceSurpported() then
+	elseif Miner.isMiningServiceSupported() then
 		Protocol.mining_service(miningServiceNid, header, 
 			function (msg)
 				callback(msg.nonce);
 			end)
+	elseif Miner.isAsyncModeSupported() then
+		Miner.callback = callback;
+		NPL.activate(format("(%s)%s", thread, "script/PCoin/Miner.lua"), {cmd = "mine", header = header:toData(), callback = callback})
 	else
-		local target = uint256:new():setCompact(header.bits);
-		local nonce = 1;
-		local hash = uint256:new();
-		while true do 
-			header.nonce = nonce;
-			hash:setHash(header:hash(true));
-
-			if (hash <= target ) then
-				break;
-			end
-			nonce = nonce + 1;
-		end
+		local nonce = mine(header);
 		Utility.log("stop mining, nonce: %d", nonce)
 		callback(nonce);
 	end
 end
+
+NPL.this(function ()
+	local msg = msg;
+	local cmd = msg.cmd
+	if cmd == "mine" then --  mining thread
+		NPL.activate("(main)script/PCoin/Miner.lua", {cmd = "result", nonce = mine(BlockHeader.create(msg.header))});
+	elseif cmd == "result" then --  main thread
+		Miner.callback(msg.nonce);
+		Miner.callback= nil
+	end
+end)

@@ -20,7 +20,7 @@ local bor = mathlib.bit.bor
 local band = mathlib.bit.band;
 local bxor = mathlib.bit.bxor;
 local bnot = mathlib.bit.bnot
--- bug: if B > 32 ,it will return A with no changing;
+-- bug: if B > 32 ,it will return A without changing;
 local rshift = mathlib.bit.rshift;
 local lshift = mathlib.bit.lshift;
 

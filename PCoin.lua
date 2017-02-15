@@ -106,13 +106,13 @@ function PCoin.selectPath()
     local nid =  Network.getNewPeer() 
     if nid then
         PCoin.step("verifyNewPeer", nid);
-    elseif Miner.isCPPSupported() or Miner.isMiningServiceSurpported() then
+    else--if Miner.isCPPSupported() or Miner.isMiningServiceSurpported() then
         PCoin.step("mine");
-    else
-        local sleep = commonlib.Timer:new({callbackFunc = 
-        function (t)  PCoin.selectPath(); end})
-
-        sleep:Change(5000);
+    --else
+        --local sleep = commonlib.Timer:new({callbackFunc = 
+        --function (t)  PCoin.selectPath(); end})
+--
+        --sleep:Change(5000);
     end
 
 
