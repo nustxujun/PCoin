@@ -10,8 +10,9 @@ local Buffer = commonlib.gettable("Mod.PCoin.Buffer");
 local Network =  commonlib.gettable("Mod.PCoin.Network");
 
 local connections = {};
-local newConnPool = Buffer:new();
+local newConnPool = {};
 local callback ;
+local proxy;
 
 
 local function makeAddress(nid)
@@ -37,7 +38,11 @@ local function loadPeer(filename)
 		local line = file:readline();
 		while line do
 			local ip, port = line:match("(%d+.%d+.%d+.%d+) (%d+)")
-			Network.addNewPeer(ip, port);
+			Network.connect(ip, port, function (nid, ret)
+				if ret then
+					Network.addNewPeer(nid);
+				end
+			end)
 			line = file:readline();
 		end
 	end
@@ -102,22 +107,19 @@ function Network.connect(ip, port, cb)
 end
 
 
-function Network.addNewPeer(ip, port)
-	local nid = addressTonid[ip .. port];
-	if nid and connections[nid]then
+function Network.addNewPeer(nid)
+	if connections[nid] then
 		return;
 	end
-	Network.connect(ip, port, 
-		function (nid, ret)
-			if ret then
-				newConnPool:push_back(nid)
-			end
-		end)
+
+	newConnPool[nid] = true;
 end
 
 function Network.getNewPeer()
-	if newConnPool:size() ~= 0 then
-		return newConnPool:pop_front();
+	if next(newConnPool) then
+		local con = next(newConnPool);
+		newConnPool[con] = nil;
+		return con;
 	else
 		return;
 	end
@@ -141,6 +143,11 @@ function Network.send(nid, msg)
 	msg.nid = nid;
 	msg.service = "PCoin";
 	echo({"send",msg})
+
+	if proxy then
+		return proxy:send(nid, msg);
+	end
+
 	if NPL.activate(makeAddress(nid), msg) ~= 0 then
 		echo({"warning: cannot send msg to ",nid})
 		Network.collect(nid);
@@ -163,6 +170,10 @@ function Network.register(cb)
 	callback = cb
 end
 
+function Network.setProxy(p)
+	proxy = p;
+end
+
 
 local rec = {};
 function Network.collect(nid)
@@ -176,10 +187,8 @@ function Network.recycle()
 
 	for k,v in pairs(rec) do 
 		connections[k] = nil;
-		local _, index = newConnPool:find(k);
-		if index then 
-			newConnPool:erase(index)
-		end
+		newConnPool[k] = nil;
+		
 		NPL.reject(k)
 		echo("close connection ".. k)
 	end
@@ -196,7 +205,7 @@ local function activate()
 
 	if msg.service == "PCoin" then
 		if not connections[id] then  
-			newConnPool:push_back(id);
+			newConnPool[id] = true;
 			connections[id] = true
 		end
 		Network.receive(msg)

@@ -121,7 +121,6 @@ function Wallet.getInputs(value)
         input.script = Script.create(k);
         inputs[#inputs + 1] = input;
         hashes[#hashes + 1] = k;
-
         if (total >= value) then
             return inputs, total, hashes
         end
@@ -152,7 +151,7 @@ function Wallet.collectCoins(start, lastKey)
         else
             local spenddata = blockchain:fetchSpendData(historydata.point);
             if not spenddata then
-                collector[key] = historydata;
+                collector[private] = historydata;
                 total = total + historydata.value;
             end
 
@@ -172,12 +171,11 @@ end
 
 function Wallet.report()
     echo("Wallet report:")
-    echo("coins")
     wallet.coins , wallet.total = Wallet.collectCoins(seed);
+    echo(format("total: %d",wallet.total) )
     for k,v in pairs(wallet.coins) do
         echo(v);
     end    
-    echo(wallet.total)
 
 
 end

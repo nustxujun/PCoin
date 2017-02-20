@@ -51,6 +51,15 @@ local function fullnode(seed)
 
 end
 
+local function wallet(seed)
+	local bc = BlockChain.create(Settings.BlockChain);
+    local tp = TransactionPool.create(bc, Settings.TransactionPool);
+    Wallet.init(bc, tp , seed);
+
+    Network.init(Settings.Network);
+    Protocol.init(bc, tp);
+end
+
 local function miningprocess()
     Network.init(Settings.Network);
     Protocol.init();
@@ -58,15 +67,12 @@ end
 
 
 
-
-
- 
-
-function PCoin.init(key)
-    fullnode(key)
-end
-
-function PCoin.start()
+function PCoin.start(key, mode)
+	if mode == "wallet" then
+		wallet(key)
+	else
+		fullnode(key)
+	end
     curState = states.selectPath;
     PCoin.selectPath();
 end
@@ -83,7 +89,17 @@ function PCoin.pay(value, keys)
 end
 
 function PCoin.connect(ip, port)
-    Network.addNewPeer(ip or "127.0.0.1", port or "8099")
+	ip = ip or "127.0.0.1";
+	port = port or  "8099"
+	Network.connect(ip ,port , function (nid, ret)
+		if ret then
+			Network.addNewPeer( nid)
+		end
+	end)
+end
+
+function PCoin.addNewPeer( nid)
+	Network.addNewPeer( nid)
 end
 
 ----------------------------------------------------------
@@ -156,9 +172,8 @@ end
 --------------------------------------------------------------
 
 function PCoin.test()
-    PCoin.init("wallet password")
 
-    PCoin.start();
+    PCoin.start("Treasure", "fullnode");
 
     PCoin.connect("127.0.0.1", "8099")
 end

@@ -5,7 +5,7 @@
 
 NPL.load("(gl)script/PCoin/math/sha256.lua");
 local Encoding = commonlib.gettable("System.Encoding");
-local hash = Encoding.sha256;
+local hash = Encoding.sha224;
 
 local Script = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Script"));
 
