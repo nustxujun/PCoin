@@ -47,7 +47,11 @@ function Wallet.init(chain, pool, start, lastKey)
     blockchain = chain;
     transactionPool = pool
     wallet = {}
-    wallet.coins , wallet.total = Wallet.collectCoins(seed, lastKey);
+
+	local timer = commonlib.Timer:new({callbackFunc = function ()
+		wallet.coins , wallet.useable, wallet.total = Wallet.collectCoins(seed, lastKey);
+	end})
+	timer:Change(0, 15000);
     Wallet.report();
 end
 
@@ -55,14 +59,18 @@ function Wallet.getCoins()
     return wallet.coins;
 end
 
+function Wallet.getUseableNumber()
+	return wallet.useable;
+end
+
 function Wallet.getTotalNumber()
     return wallet.total;
 end
 
 function Wallet.pay(value, hashes)
-    local inputs, total, coins = Wallet.getInputs(value);
+    local inputs, useable, coins = Wallet.getInputs(value);
     if not inputs then 
-        echo({"not enough money", value, wallet.total})
+        echo({"not enough money", value, wallet.useable})
         return;-- not enough money;
     end
     local tx = Transaction:new()
@@ -78,7 +86,7 @@ function Wallet.pay(value, hashes)
         tx.outputs[#tx.outputs + 1] = o; 
     end
 
-    local cash = total - value;
+    local cash = useable - value;
     if cash > 0 then
         local o = Output:new();
         o.value = cash;
@@ -89,12 +97,15 @@ function Wallet.pay(value, hashes)
 
     if  transactionPool:store(tx) then
         for k,v in pairs(coins) do 
-            wallet.total = wallet.total - wallet.coins[v].value;
+            wallet.useable = wallet.useable - wallet.coins[v].value;
+			wallet.total= wallet.total- wallet.coins[v].value;
             wallet.coins[v] = nil;
         end
         
         Protocol.notifyNewTransaction(tx:hash())
+		return true;
     end
+
 end
 
 
@@ -108,21 +119,21 @@ function Wallet.generateKeys(num)
 end
 
 function Wallet.getInputs(value)
-    if value > wallet.total then
+    if value > wallet.useable then
         return 
     end
-    local total = 0;
+    local useable = 0;
     local inputs = {}
     local hashes = {}
     for k,v in pairs(wallet.coins) do 
-        total = total + v.value;
+        useable = useable + v.value;
         local input = Input:new()
         input.preOutput = Point.create(v.point);
         input.script = Script.create(k);
         inputs[#inputs + 1] = input;
         hashes[#hashes + 1] = k;
-        if (total >= value) then
-            return inputs, total, hashes
+        if (useable >= value) then
+            return inputs, useable, hashes
         end
     end
     return 
@@ -134,10 +145,22 @@ function Wallet.collectCoins(start, lastKey)
     local collector = {}
     local key = nextKey
     local reserveCount ;
-    local total = 0;
+    local useable = 0;
+	local total = 0;
     if not lastKey then
         reserveCount = 0;
     end
+
+	local inputs = {};
+	local outputs = {};
+	for k,t in ipairs(transactionPool:getByCount()) do
+		for _, i in ipairs(t.inputs) do
+			inputs[i.script.operations] = true;
+		end
+		for _, o in ipairs(t.outputs) do 
+			outputs[o.script.operations] = o.value;
+		end
+	end
 
     while true do  
         key = Encoding.sha256(key,"string");
@@ -145,14 +168,17 @@ function Wallet.collectCoins(start, lastKey)
         local public = makePublicKey(private,"string");
         local historydata = blockchain:fetchHistoryData(public);
         if not historydata then
-            if reserveCount then 
+			if outputs[public] then
+				total = total + outputs[public];
+            elseif reserveCount then 
                 reserveCount = reserveCount + 1;
             end
         else
             local spenddata = blockchain:fetchSpendData(historydata.point);
-            if not spenddata then
+            if not spenddata and not inputs[private] then
                 collector[private] = historydata;
-                total = total + historydata.value;
+                useable = useable + historydata.value;
+				total = total + historydata.value;
             end
 
             nextKey = key;
@@ -166,13 +192,13 @@ function Wallet.collectCoins(start, lastKey)
             break;
         end
     end
-    return collector, total;
+    return collector, useable, total;
 end
 
 function Wallet.report()
     echo("Wallet report:")
-    wallet.coins , wallet.total = Wallet.collectCoins(seed);
-    echo(format("total: %d",wallet.total) )
+    wallet.coins , wallet.useable, wallet.total = Wallet.collectCoins(seed);
+    echo(format("useable: %d",wallet.useable) )
     for k,v in pairs(wallet.coins) do
         echo(v);
     end    
@@ -197,7 +223,7 @@ function Wallet.test()
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
 
     Wallet.init(bc, tp , "Treasure");
-    echo("total value: " .. wallet.total)
+    echo("useable value: " .. wallet.useable)
 
     Wallet.pay(10, Wallet.generateKeys(2));
 

@@ -30,6 +30,7 @@ NPL.load("(gl)script/PCoin/Constants.lua");
 local Constants = commonlib.gettable("Mod.PCoin.Constants");
 
 local PCoin = commonlib.gettable("Mod.PCoin");
+local mode = nil;
 local curState; 
 local states = 
 {
@@ -44,6 +45,7 @@ local function fullnode(seed)
 	local bc = BlockChain.create(Settings.BlockChain);
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
     Miner.init(bc, tp);
+
     Wallet.init(bc, tp , seed);
 
     Network.init(Settings.Network);
@@ -65,12 +67,19 @@ local function miningprocess()
     Protocol.init();
 end
 
+function PCoin.isInited()
+	return curState ~= nil
+end
 
-
-function PCoin.start(key, mode)
+function PCoin.start(key, m)
+	if PCoin.isInited() then 
+		return 
+	end
+	mode = m;
 	if mode == "wallet" then
 		wallet(key)
 	else
+		mode = "fullnode"
 		fullnode(key)
 	end
     curState = states.selectPath;
@@ -85,7 +94,7 @@ function PCoin.generateKeys(num)
 end
 
 function PCoin.pay(value, keys)
-    Wallet.pay(value, keys);
+   return Wallet.pay(value, keys);
 end
 
 function PCoin.connect(ip, port)
@@ -103,10 +112,12 @@ function PCoin.addNewPeer( nid)
 end
 
 ----------------------------------------------------------
-function PCoin.step(input, ...)
+function PCoin.step(input, delay, ...)
     if not curState[input] then    
         return 
     end
+
+	delay = delay or 1;
 
     local paras = {...}
     local nextFrame = commonlib.Timer:new({callbackFunc = 
@@ -115,30 +126,25 @@ function PCoin.step(input, ...)
             curState = states[input];
             PCoin[input](paras[1], paras[2], paras[3], paras[4],paras[5])
         end});
-    nextFrame:Change(1);
+    nextFrame:Change(delay);
 end
 
 function PCoin.selectPath()
     local nid =  Network.getNewPeer() 
     if nid then
-        PCoin.step("verifyNewPeer", nid);
-    else--if Miner.isCPPSupported() or Miner.isMiningServiceSurpported() then
+        PCoin.step("verifyNewPeer",nil, nid);
+    elseif mode == "fullnode" then
         PCoin.step("mine");
-    --else
-        --local sleep = commonlib.Timer:new({callbackFunc = 
-        --function (t)  PCoin.selectPath(); end})
---
-        --sleep:Change(5000);
+	else
+        PCoin.step("selectPath", 30000)
     end
-
-
 end
 
 function PCoin.verifyNewPeer(nid)
     Protocol.version(nid, Constants.curVersion,
         function (msg)
             if msg.version == Constants.curVersion then
-                PCoin.step("updateNodeAddress", nid)
+                PCoin.step("updateNodeAddress",nil, nid)
             else
                 PCoin.step("selectPath")
             end
@@ -148,7 +154,7 @@ end
 function PCoin.updateNodeAddress(nid)
     Protocol.node_address(nid, 
         function (msg)
-            PCoin.step("updateBlocks", nid)
+            PCoin.step("updateBlocks",nil, nid)
         end
     )
 end
@@ -164,10 +170,13 @@ end
 function PCoin.mine()
     Miner.generateBlock(
         function ()
-            PCoin.step("selectPath");
+            PCoin.step("selectPath", 30000);
         end) 
 end
 
+function PCoin.getCount()
+	return Wallet.getUseableNumber(), Wallet.getTotalNumber();
+end
 
 --------------------------------------------------------------
 

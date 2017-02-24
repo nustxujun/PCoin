@@ -20,22 +20,25 @@ local Protocol = commonlib.gettable("Mod.PCoin.Protocol");
 
 local blockchain = nil
 local transactionpool = nil;
-local timer = nil;
 local miningServiceNid = nil;
 local thread = "miner01"
+local runtime = nil;
 
 function Miner.init(chain, pool)
 	blockchain = chain
 	transactionpool = pool;
 
-	NPL.CreateRuntimeState(thread, 0):Start();
+	blockchain:setHandler( function () Miner.stop(); end);
+
+
+	runtime = NPL.CreateRuntimeState(thread, 0);
+	runtime:Start();
 end
 
 
 
 function Miner.generateBlock(callback)
 	Miner.stop();
-
 	local top = blockchain:getHeight();
 	local topblock = blockchain:fetchBlockDataByHeight(top);
 	local preheader = BlockHeader.create(topblock.block.header);
@@ -59,39 +62,37 @@ function Miner.generateBlock(callback)
 	block.transactions = transactionpool:getByCount();
 	header.merkle = block:generateMerkleRoot();
 
-
 	Miner.mine(block.header,
-		function (nonce)
+		function (nonce, ret)
 			block.header.nonce = nonce;
-
-			Miner.store(block);
+			if ret then
+				Miner.store(block);
+			end
 			if callback then
-				callback();
+				callback(ret);
 			end
 		end)
 end
 
 
 function Miner.stop()
-	if timer then
-		timer:Change()
-		timer = nil;
+	if Miner.isAsyncModeSupported() then
+		NPL.activate(format("(%s)%s", thread, "script/PCoin/Miner.lua"), {cmd = "stop"})
+		if Miner.callback then
+			local callback = Miner.callback;
+			Miner.callback = nil
+			callback(nil, false)
+		end
 	end
-
 end
 
 function Miner.store(block)
 	local blockdetail = BlockDetail.create(block);
 	blockchain:store(blockdetail);
 	local newblocks = blockchain:organize();
-	echo(newblocks)
 	if #newblocks ~= 0 then
 		Protocol.notifyNewBlock(newblocks);
 	end
-end
-
-function Miner.isCPPSupported()
-	return NPL.ProofOfWork ~= nil;
 end
 
 function Miner.isMiningServiceSupported()
@@ -106,61 +107,73 @@ function Miner.setMiningServiceNid(nid)
 	miningServiceNid = nid;
 end
 
-function mine(header)
-	local target = uint256:new():setCompact(header.bits);
-	local nonce = 1;
-	local hash = uint256:new();
-	while true do 
-		header.nonce = nonce;
-		hash:setHash(BlockHeader.hash(header, true));
-
-		if (hash <= target ) then
-			break;
-		end
-		nonce = nonce + 1;
-	end
-	return nonce;
-end
-
 function Miner.mine(header, callback)
 	Utility.log("begin mining, target: %x", header.bits)
 
-	if Miner.isCPPSupported() then
-		NPL.ProofOfWork(NPL.SerializeToSCode("",header:toData()) , header.bits);
-		timer = commonlib.Timer:new({callbackFunc = 
-		function ()
-			local nonce = NPL.getValidPOW();
-			if nonce ~= 0 then
-				Miner.stop();
-				header.nonce = nonce;
-				Utility.log("stop mining, nonce: %d", nonce)
-				
-				callback(nonce);
-			end
-		end});
-		timer:Change(1000, 1000);
-	elseif Miner.isMiningServiceSupported() then
+	if Miner.isMiningServiceSupported() then
 		Protocol.mining_service(miningServiceNid, header, 
 			function (msg)
-				callback(msg.nonce);
+				callback(msg.nonce,true);
 			end)
 	elseif Miner.isAsyncModeSupported() then
 		Miner.callback = callback;
-		NPL.activate(format("(%s)%s", thread, "script/PCoin/Miner.lua"), {cmd = "mine", header = header:toData(), callback = callback})
+		NPL.activate(format("(%s)%s", thread, "script/PCoin/Miner.lua"), {cmd = "mine", header = header:toData()})
 	else
+		function mine(header)
+			local target = uint256:new():setCompact(header.bits);
+			local nonce = 1;
+			local hash = uint256:new();
+			while not stop do 
+				header.nonce = nonce;
+				hash:setHash(BlockHeader.hash(header, true));
+
+				if (hash <= target ) then
+					break;
+				end
+				nonce = nonce + 1;
+			end
+			return nonce;
+		end
+
 		local nonce = mine(header);
 		Utility.log("stop mining, nonce: %d", nonce)
-		callback(nonce);
+		callback(nonce,true);
 	end
 end
 
+local timer = nil;
 NPL.this(function ()
 	local msg = msg;
 	local cmd = msg.cmd
 	if cmd == "mine" then --  mining thread
-		NPL.activate("(main)script/PCoin/Miner.lua", {cmd = "result", nonce = mine(BlockHeader.create(msg.header))});
+		local header = BlockHeader.create(msg.header);
+		local target = uint256:new():setCompact(header.bits);
+		local hash = uint256:new();
+		local nonce = 0;
+
+		timer = commonlib.Timer:new({callbackFunc = function ()
+			for i = 1, 0xffff do
+				nonce = nonce + 1;
+				header.nonce = nonce;
+				hash:setHash(header:hash(true));
+				if (hash <= target ) then
+					timer:Change();
+					timer = nil;
+					NPL.activate("(main)script/PCoin/Miner.lua", {cmd = "result", nonce = nonce});
+					break;
+				end
+			end
+		end})
+		timer:Change(0,1);
+
 	elseif cmd == "result" then --  main thread
-		Miner.callback(msg.nonce);
+		local callback = Miner.callback ;
 		Miner.callback= nil
+		callback(msg.nonce, true);
+	elseif cmd == "stop" then
+		if timer then
+			timer:Change()
+			timer = nil;
+		end
 	end
 end)
