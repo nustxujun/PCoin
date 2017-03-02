@@ -82,7 +82,7 @@ local function checkBlock(block)
 	local header = block.header;
 
 	if not isValidProofOfWork(header:hash(), header.bits) then
-		return "Error:ProofOfWork";
+		return "Error:InvalidProofOfWork";
 	end
 
 	if not isValidTimestamp(header.timestamp) then

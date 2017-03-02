@@ -84,6 +84,10 @@ function PCoin.start(key, m)
 	end
     curState = states.selectPath;
     PCoin.selectPath();
+    
+	if mode == "fullnode" then
+		PCoin.mine();
+	end
 end
 
 function PCoin.stop()
@@ -122,7 +126,6 @@ function PCoin.step(input, delay, ...)
     local paras = {...}
     local nextFrame = commonlib.Timer:new({callbackFunc = 
         function ()
-            echo("step to " .. input)
             curState = states[input];
             PCoin[input](paras[1], paras[2], paras[3], paras[4],paras[5])
         end});
@@ -133,10 +136,8 @@ function PCoin.selectPath()
     local nid =  Network.getNewPeer() 
     if nid then
         PCoin.step("verifyNewPeer",nil, nid);
-    elseif mode == "fullnode" then
-        PCoin.step("mine");
 	else
-        PCoin.step("selectPath", 30000)
+        PCoin.step("selectPath", 15000)
     end
 end
 
@@ -170,8 +171,12 @@ end
 function PCoin.mine()
     Miner.generateBlock(
         function ()
-            PCoin.step("selectPath", 30000);
+            PCoin.mine();
         end) 
+end
+
+function PCoin.stopMining()
+    Miner.stop();
 end
 
 function PCoin.getCount()

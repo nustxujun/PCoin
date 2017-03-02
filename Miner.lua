@@ -169,7 +169,9 @@ NPL.this(function ()
 	elseif cmd == "result" then --  main thread
 		local callback = Miner.callback ;
 		Miner.callback= nil
-		callback(msg.nonce, true);
+		if callback then
+			callback(msg.nonce, true);
+		end
 	elseif cmd == "stop" then
 		if timer then
 			timer:Change()

@@ -42,6 +42,7 @@ local function makeKey()
 end
 
 function Wallet.init(chain, pool, start, lastKey)
+    start = tostring(start)
     seed = start
     nextKey = start;
     blockchain = chain;

@@ -83,7 +83,7 @@ function Organizer:replaceChain(fork, orphanchain)
 		orphanwork = orphanwork + blockwork(v.block.header.bits);
 	end
 	if orphanchain:size() == 0 then	
-		log("no block store in chain")
+		log("no block stored in orphan chain")
 		return
 	end
 

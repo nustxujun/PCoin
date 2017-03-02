@@ -65,6 +65,14 @@ function Network.init(settings)
 	timer:Change(5000,5000);
 end
 
+function Network.clear()
+	newConnPool = {};
+	for k,v in pairs(connections) do
+		NPL.reject(k);
+	end
+	connections = {};
+end
+
 local ping_msg = {service="PCoin"};
 local lastnid = 1000;
 local addressTonid = {};
@@ -126,6 +134,11 @@ function Network.getNewPeer()
 end
 
 function Network.receive(msg)
+	local id = msg.nid or msg.tid;
+	if not connections[id] then  
+		newConnPool[id] = true;
+		connections[id] = true
+	end
 	msg.nid = msg.nid or msg.tid;
 	local conn = connections[msg.nid];
 	if not conn then
@@ -204,10 +217,6 @@ local function activate()
 	local id = msg.nid or msg.tid;
 
 	if msg.service == "PCoin" then
-		if not connections[id] then  
-			newConnPool[id] = true;
-			connections[id] = true
-		end
 		Network.receive(msg)
 	end
 end
