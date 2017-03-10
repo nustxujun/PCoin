@@ -130,6 +130,12 @@ function Protocol.block(nid, desired, callback)
 		function (msg)
 			for k,v in ipairs(msg.desired) do 
 				local bd = BlockDetail.create(Block.create(v));
+				local txdatas = bd.block.transactions;
+				local txs = {};
+				for _, td in ipairs(txdatas) do
+					txs[#txs + 1] = Transaction.create(td);
+				end
+				bd.block.transactions = txs;
 				blockchain:store(bd);
 			end
 			local newblocks = blockchain:organize();
@@ -177,6 +183,12 @@ function Protocol.block_header(nid,cb)
 						local lastHash ;
 						for k,v in ipairs(msg.desired) do 
 							local bd = BlockDetail.create(Block.create(v));
+							local txdatas = bd.block.transactions;
+							local txs = {};
+							for _, td in ipairs(txdatas) do
+								txs[#txs + 1] = Transaction.create(td);
+							end
+							bd.block.transactions = txs;
 							blockchain:store(bd);
 							lastHash = bd:getHash();
 						end
@@ -190,7 +202,7 @@ function Protocol.block_header(nid,cb)
 							--peer mainchain may be changed from others
 							--reconfirm it
 						end
-							
+						-- repeat from top
 						Protocol.block_header(nid,cb)
 						
 					end);
@@ -208,13 +220,17 @@ function Protocol.block_header(nid,cb)
 	request(nid, "block_header", {locator = locator}, callback);
 end
 
-function Protocol.transaction(nid, desired)
+function Protocol.transaction(nid, desired, cb)
 	request(nid, "transaction", {desired = desired}, 
 		function (msg)
 			for k,v in pairs(msg.desired) do 
 				local tx = Transaction.create(v);
 				transactionpool:store(tx);
 			end
+
+			if cb then
+				cb()
+			end;
 		end);
 end
 
@@ -325,18 +341,26 @@ protocols.transaction =
 function (msg)
 	local desired = {};
 	if msg.type == REQUEST_T then 
-		for k,v in ipairs(msg.desired) do 
-			local tx =transactionpool:get(v);
-			local txData;
-			if tx then 
-				txData = tx:toData();
-			else 
-				txData = blockchain:fetchTransactionData(v)
+		if not msg.desired then
+			local txs ;
+			txs = transactionpool:getByCount();
+			for k,v in ipairs(txs) do
+				desired[#desired + 1] = v:toData();
 			end
-			desired[#desired + 1] = txData
-			response(msg.nid, msg.seq, {desired = desired})
-
+		else
+			for k,v in ipairs(msg.desired) do 
+				local tx =transactionpool:get(v);
+				local txData;
+				if tx then 
+					txData = tx:toData();
+				else 
+					txData = blockchain:fetchTransactionData(v)
+				end
+				desired[#desired + 1] = txData
+			end
 		end
+
+		response(msg.nid, msg.seq, {desired = desired})
 	end
 end
 
@@ -345,6 +369,7 @@ function (msg)
 	if (not transactionpool:get(msg.hash)) and 
 		(not blockchain:fetchTransactionData(v)) then 
 		Protocol.transaction(msg.nid, {msg.hash});
+		Protocol.notifyNewTransaction(msg.hash,msg.nid)
 	end
 end
 

@@ -105,8 +105,8 @@ function Block:fromData(data)
 	self.transactions = {}
 	local trans = self.transactions
 	for k,v in pairs(data.transactions or {}) do
-		local t = Transaction.create(v);
-		trans[#trans + 1] = t;
+		-- parse transaction outside
+		trans[#trans + 1] = v;
 	end
 end
 

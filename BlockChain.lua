@@ -46,13 +46,28 @@ function BlockChain:init(settings)
 	self.handler = {}
 end
 
-function BlockChain:setHandler(handler)
-	self.handler[#self.handler + 1] = handler;
+function BlockChain:setHandler(name, handler)
+	for k,v in ipairs(self.handler) do 
+		if v.name == name then
+			return 
+		end
+	end
+
+	self.handler[#self.handler + 1] ={name = name, handler = handler};
+end
+
+function BlockChain:removeHandler(name)
+	for k,v in ipairs(self.handler) do
+		if v.name == name then
+			table.remove(self.handler, k);
+			break;
+		end
+	end
 end
 
 function BlockChain:handleEvent(...)
 	for k,v in pairs(self.handler) do
-		v(...);
+		v.handler(...);
 	end
 end
 

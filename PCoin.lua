@@ -34,15 +34,18 @@ local mode = nil;
 local curState; 
 local states = 
 {
-    selectPath = {verifyNewPeer = true, mine = true,selectPath = true},
+    selectPath = {verifyNewPeer = true, selectPath = true},
     verifyNewPeer = {updateNodeAddress = true},
     updateNodeAddress = {updateBlocks = true},
-    updateBlocks = {selectPath = true},
-    mine = {selectPath = true}
+    updateBlocks = {updateTransactions = true},
+    updateTransactions = {selectPath = true},
 }
 
+
+local blockchain;
 local function fullnode(seed)
-	local bc = BlockChain.create(Settings.BlockChain);
+	blockchain = BlockChain.create(Settings.BlockChain);
+    local bc = blockchain
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
     Miner.init(bc, tp);
 
@@ -54,7 +57,8 @@ local function fullnode(seed)
 end
 
 local function wallet(seed)
-	local bc = BlockChain.create(Settings.BlockChain);
+	blockchain = BlockChain.create(Settings.BlockChain);
+    local bc = blockchain
     local tp = TransactionPool.create(bc, Settings.TransactionPool);
     Wallet.init(bc, tp , seed);
 
@@ -122,7 +126,6 @@ function PCoin.step(input, delay, ...)
     end
 
 	delay = delay or 1;
-
     local paras = {...}
     local nextFrame = commonlib.Timer:new({callbackFunc = 
         function ()
@@ -137,7 +140,7 @@ function PCoin.selectPath()
     if nid then
         PCoin.step("verifyNewPeer",nil, nid);
 	else
-        PCoin.step("selectPath", 15000)
+        PCoin.step("selectPath", 5000)
     end
 end
 
@@ -163,8 +166,15 @@ end
 function PCoin.updateBlocks(nid)
     Protocol.block_header(nid, 
         function ()
-            PCoin.step("selectPath");
+            PCoin.step("updateTransactions", nil, nid);
         end);
+end
+
+function PCoin.updateTransactions(nid)
+    Protocol.transaction(nid, nil, 
+        function ()
+            PCoin.step("selectPath");
+        end )
 end
 
 
@@ -175,14 +185,14 @@ function PCoin.mine()
         end) 
 end
 
-function PCoin.stopMining()
-    Miner.stop();
-end
-
 function PCoin.getCount()
 	return Wallet.getUseableNumber(), Wallet.getTotalNumber();
 end
 
+function PCoin.report()
+    echo("PCoin report:")
+    blockchain:report();
+end
 --------------------------------------------------------------
 
 function PCoin.test()

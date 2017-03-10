@@ -119,8 +119,8 @@ function Network.addNewPeer(nid)
 	if connections[nid] then
 		return;
 	end
-
 	newConnPool[nid] = true;
+	connections[nid] = true
 end
 
 function Network.getNewPeer()
@@ -131,6 +131,12 @@ function Network.getNewPeer()
 	else
 		return;
 	end
+end
+
+function Network.removePeer(nid)
+	connections[nid] = nil;
+	newConnPool[nid] = nil;
+	NPL.reject(nid);
 end
 
 function Network.receive(msg)
@@ -229,10 +235,12 @@ function Network.test()
 	Network.init()
 	Network.register(Protocol.receive);
 	Network.connect("127.0.0.1","8099", 
-		function (...)
-			Protocol.ping("1000", 
-				function(msg) 
-					echo("lag: " .. (os.time() - msg.timestamp))
-				end) 
+		function (nid, ret)
+			if ret then
+				Protocol.ping(nid, 
+					function(msg) 
+						echo("lag: " .. (os.time() - msg.timestamp))
+					end) 
+			end
 		end)
 end

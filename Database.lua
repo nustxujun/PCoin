@@ -11,7 +11,9 @@ NPL.load("(gl)script/PCoin/HistoryDatabase.lua");
 NPL.load("(gl)script/ide/System/Database/TableDatabase.lua");
 NPL.load("(gl)script/PCoin/Wallet/PaymentAddress.lua");
 NPL.load("(gl)script/PCoin/Utility.lua");
+NPL.load("(gl)script/PCoin/Transaction.lua");
 
+local Transaction = commonlib.gettable("Mod.PCoin.Transaction");
 local Utility = commonlib.gettable("Mod.PCoin.Utility");
 local Block = commonlib.gettable("Mod.PCoin.Block");
 local TableDatabase = commonlib.gettable("System.Database.TableDatabase");
@@ -100,10 +102,10 @@ local function popInputs(inputs, db)
 	end
 end
 
-local function popOutput(outputs, db )
+local function popOutputs(outputs, db )
 	for k,v in pairs(outputs) do
 		local address = PaymentAddress.create(v.script);
-		historys:remove(address:hash());
+		db:remove(address:hash());
 	end
 end
 
@@ -115,14 +117,17 @@ function Database:pop()
 	local err,blockdata = blocks:getBlockByHeight(h);
 	local block = Block.create(blockdata.block)
 	local txs = block.transactions
+	block.transactions = {};
 	for i, hash in pairs(txs) do 
-		local data = txdb:get(hash);
+		local err, data = txdb:get(hash);
 		local t = Transaction:new();
 		if data then
-			t:fromData(data);
+			t:fromData(data.transaction);
 			popInputs(t.inputs, self.spends);
 			popOutputs(t.outputs, self.historys);
-			txs[i] = t;
+			block.transactions[i] = t;
+
+			txdb:remove(hash);
 		else
 			Utility.log("[Database]pop: failed to find transaction with hash %s in block(hash %s)", 
 						Utility.HashBytesToString(hash),Utility.HashBytesToString(block.header:hash()));

@@ -30,7 +30,7 @@ function TransactionPool:init(chain,settings)
 	self.capacity = settings.capacity;
 	self.trans = Buffer:new();
 
-	chain:setHandler(function (...) self:notifyReorganize(...); end);
+	chain:setHandler("transactionpool", function (...) self:notifyReorganize(...); end);
 end
 
 function TransactionPool:store(transaction)
@@ -125,7 +125,7 @@ end
 events.PopBlock = 
 function (pool, blockdetail)
 	for i, t in pairs(blockdetail.block.transactions) do
-		pool:push(t)
+		pool:store(t)
 	end
 end
 

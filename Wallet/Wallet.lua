@@ -38,7 +38,8 @@ local function makeKey()
     nextKey = Encoding.sha256(nextKey,"string");
     
     local private = makePrivateKey(nextKey, "string");
-    return makePublicKey(private,"string"), private
+    local public = makePublicKey(private,"string")
+    return public, private
 end
 
 function Wallet.init(chain, pool, start, lastKey)
@@ -52,7 +53,7 @@ function Wallet.init(chain, pool, start, lastKey)
 	local timer = commonlib.Timer:new({callbackFunc = function ()
 		wallet.coins , wallet.useable, wallet.total = Wallet.collectCoins(seed, lastKey);
 	end})
-	timer:Change(0, 15000);
+	timer:Change(0, 5000);
     Wallet.report();
 end
 
@@ -171,6 +172,7 @@ function Wallet.collectCoins(start, lastKey)
         if not historydata then
 			if outputs[public] then
 				total = total + outputs[public];
+                nextKey = key;
             elseif reserveCount then 
                 reserveCount = reserveCount + 1;
             end
@@ -181,7 +183,6 @@ function Wallet.collectCoins(start, lastKey)
                 useable = useable + historydata.value;
 				total = total + historydata.value;
             end
-
             nextKey = key;
         end
 
