@@ -84,13 +84,6 @@ function Protocol.init(chain, pool)
 	blockchain = chain;
 	transactionpool = pool;
 
-	-- chain:setHandler(
-	-- 	function (event,blockdetail)
-	-- 		if (event == "PushBlock") then
-	-- 			Protocol.notifyNewBlock(blockdetail:getHash());
-	-- 		end
-	-- 	end
-	-- ) 
 
 	Network.register(Protocol.receive);
 	
@@ -140,7 +133,11 @@ function Protocol.block(nid, desired, callback)
 			end
 			local newblocks = blockchain:organize();
 			if #newblocks ~= 0 then
-				Protocol.notifyNewBlock(newblocks, nid);
+				local hashes = {};
+				for k,v in ipairs(newblocks) do
+					hashes[#hashes + 1] = v:getHash(); 
+				end
+				Protocol.notifyNewBlock(hashes, nid);
 			end
 		end)
 end
@@ -151,7 +148,7 @@ function Protocol.block_header(nid,cb)
 		local locator = {}
 		local step = 1
 		local i = height;
-		while (i >= 1) do 
+		while (i > 1) do 
 			local data = blockchain:fetchBlockDataByHeight(i);
 			if data then 
 				locator[#locator + 1] = data.hash;
@@ -163,12 +160,15 @@ function Protocol.block_header(nid,cb)
 			end
 			i = i - step;
 		end
-		return locator, i + step - 1;
+		-- genesis block
+		locator[#locator + 1] = blockchain:fetchBlockDataByHeight(1).hash;
+		
+		return locator;
 	end
-	local locator, tail = getLocator(blockchain:getHeight());
+	local locator = getLocator(blockchain:getHeight());
 
 	local function callback(msg)
-		if #msg.headers ~= 0 then
+		if #msg.headers ~= 0 then --#1
 			local desired = {}
 			for k,v in pairs(msg.headers) do 
 				local data = blockchain:exist(v);
@@ -194,28 +194,26 @@ function Protocol.block_header(nid,cb)
 						end
 						local newblocks = blockchain:organize();
 						if #newblocks ~= 0 then
-							Protocol.notifyNewBlock(newblocks, nid);
-						elseif lastHash then
-							request(nid, "block_header", {locator = {lastHash}}, callback);
-							return;
-						else
-							--peer mainchain may be changed from others
-							--reconfirm it
+							local hashes = {};
+							for k,v in ipairs(newblocks) do
+								hashes[#hashes + 1] = v:getHash(); 
+							end
+							Protocol.notifyNewBlock(hashes, nid);
 						end
-						-- repeat from top
-						Protocol.block_header(nid,cb)
-						
+						if lastHash then
+							request(nid, "block_header", {locator = {lastHash}}, callback);
+						else
+							-- repeat from top
+							Protocol.block_header(nid,cb)
+						end
 					end);
 			else
-				cb();
+				request(nid, "block_header", {locator = {msg.headers[#msg.headers]}}, callback);
 			end
-		elseif tail > 0 then
-			locator, tail = getLocator(tail);
-			request(nid, "block_header", {locator = locator}, callback);
-		else	
-			echo("warning: another MAIN CHAIN is existed which has different genesis block!")
+		else
+			--echo("warning: another MAIN CHAIN is existed which has different genesis block!")
 			cb();
-		end
+		end --#1
 	end
 	request(nid, "block_header", {locator = locator}, callback);
 end
@@ -439,5 +437,5 @@ function Protocol.test()
 	echo("send newBlock")
 
 	local header = BlockHeader.create(b.block.header);
-	Protocol.notifyNewBlock(header:hash())
+	Protocol.notifyNewBlock({header:hash()})
 end

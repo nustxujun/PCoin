@@ -6,6 +6,10 @@
 local Buffer = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Buffer"));
 
 function Buffer:ctor()
+	self:clear();
+end
+
+function Buffer:clear()
 	self.data = {};
 	self.first = 1;
 	self.last = 0;
@@ -74,4 +78,3 @@ function Buffer:iterator()
 		end
 	end
 end
-

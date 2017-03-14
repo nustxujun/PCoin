@@ -91,7 +91,11 @@ function Miner.store(block)
 	blockchain:store(blockdetail);
 	local newblocks = blockchain:organize();
 	if #newblocks ~= 0 then
-		Protocol.notifyNewBlock(newblocks);
+		local hashes = {};
+		for k,v in ipairs(newblocks) do
+			hashes[#hashes + 1] = v:getHash(); 
+		end
+		Protocol.notifyNewBlock(hashes);
 	end
 end
 

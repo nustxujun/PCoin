@@ -21,6 +21,7 @@ local Organizer = commonlib.inherit(nil, commonlib.gettable("Mod.PCoin.Organizer
 function Organizer:ctor()
 	self.chain = nil;
 	self.orphans = nil;
+	self.handler = {};
 end
 
 function Organizer.create(blockchain)
@@ -58,14 +59,14 @@ function Organizer:process(blockdetail)
 	local orphanchain = self.orphans:trace(blockdetail);
 	local hash = orphanchain:front():getPreHash();
 	local height = self.chain:getHeight(hash);
-	local blocks;
+	local blocks ;
 	if height then
 		blocks = self:replaceChain(height , orphanchain)
 	else
 		log("[Organizer]process: cannot find previous block in chain(hash: %s)", Utility.HashBytesToString(hash));
 	end
 	blockdetail:setProcessed()
-	return blocks or {}
+	return blocks or {};
 end
 
 function Organizer:replaceChain(fork, orphanchain)
@@ -109,7 +110,7 @@ function Organizer:replaceChain(fork, orphanchain)
 		arrivalindex = arrivalindex + 1;
 
 		mainchain:push(v);
-		newBlocks[#newBlocks + 1] = v:getHash();
+		newBlocks[#newBlocks + 1] = v;
 	end
 
 	--add the old blocks back to the orphan pool
@@ -117,6 +118,8 @@ function Organizer:replaceChain(fork, orphanchain)
 		v:setProcessed();
 		orphans:add(v);
 	end
+
+	self:handleEvent("notifyReorganize", newBlocks, releasedblocks)
 
 	return newBlocks
 end
@@ -147,6 +150,32 @@ end
 function Organizer:exist(hash)
 	return self.orphans:exist(hash) or self.chain:fetchBlockDataByHash(hash) ~= nil;
 end
+
+function Organizer:setHandler(name, handler)
+	for k,v in ipairs(self.handler) do 
+		if v.name == name then
+			return 
+		end
+	end
+
+	self.handler[#self.handler + 1] ={name = name, handler = handler};
+end
+
+function Organizer:removeHandler(name)
+	for k,v in ipairs(self.handler) do
+		if v.name == name then
+			table.remove(self.handler, k);
+			break;
+		end
+	end
+end
+
+function Organizer:handleEvent(...)
+	for k,v in pairs(self.handler) do
+		v.handler(...);
+	end
+end
+
 
 function Organizer:report()
 	self.orphans:report()

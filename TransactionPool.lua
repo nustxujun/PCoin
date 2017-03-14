@@ -37,7 +37,7 @@ function TransactionPool:store(transaction)
 	local ret = validator(transaction, self, self.chain);
 	
 	if ret then
-		Utility.log("[TransactionPool] failed to store transaction, reason: %s", ret);	
+		Utility.log("[TransactionPool] failed to store transaction %s, reason: %s",Utility.HashBytesToString(transaction:hash()), ret);	
 		return false-- invalid
 	end
 
@@ -65,7 +65,7 @@ function TransactionPool:getByCount(count)
 	return ret;
 end
 
--- tx will be found with hash if index is nil
+-- tx will be found by hash if index is nil
 function TransactionPool:remove(tran, index)
 	local hash = tran:hash();
 	if self:removeSingle(hash, index) then
@@ -131,11 +131,32 @@ end
 
 
 
-function TransactionPool:notifyReorganize(event, ... )
-	local e = events[event]
-	if e then
-		e(self, ...);
+function TransactionPool:notifyReorganize(event, newblocks, replacedblocks )
+	if event ~= "notifyReorganize" then
+		return 
 	end
+
+	if #replacedblocks == 0 then
+		for k,v in ipairs(newblocks) do
+			for _, t in ipairs(v.block.transactions) do 
+				self:remove(t)
+			end
+		end
+	else
+		Utility.log("[TransactionPool] resubmit transaction from pool and replaced blocks when reorganize");	
+	
+		local txs = self:getByCount();
+		self.trans:clear();
+		for k,v in ipairs(txs) do
+			self:store(v);
+		end
+		for k,v in ipairs(replacedblocks) do
+			for _, t in ipairs(v.block.transactions) do 
+				self:store(t)
+			end
+		end
+	end
+	
 end
 
 

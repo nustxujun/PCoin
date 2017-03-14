@@ -43,10 +43,12 @@ local states =
 
 
 local blockchain;
+local transactionpool;
 local function fullnode(seed)
 	blockchain = BlockChain.create(Settings.BlockChain);
+    transactionpool = TransactionPool.create(blockchain, Settings.TransactionPool);
     local bc = blockchain
-    local tp = TransactionPool.create(bc, Settings.TransactionPool);
+    local tp = transactionpool
     Miner.init(bc, tp);
 
     Wallet.init(bc, tp , seed);
@@ -57,9 +59,10 @@ local function fullnode(seed)
 end
 
 local function wallet(seed)
-	blockchain = BlockChain.create(Settings.BlockChain);
+    blockchain = BlockChain.create(Settings.BlockChain);
+    transactionpool = TransactionPool.create(blockchain, Settings.TransactionPool);
     local bc = blockchain
-    local tp = TransactionPool.create(bc, Settings.TransactionPool);
+    local tp = transactionpool
     Wallet.init(bc, tp , seed);
 
     Network.init(Settings.Network);
@@ -192,6 +195,8 @@ end
 function PCoin.report()
     echo("PCoin report:")
     blockchain:report();
+    transactionpool:report();
+
 end
 --------------------------------------------------------------
 

@@ -26,7 +26,6 @@ function BlockChain:ctor()
 	self.spends = nil;
 	self.organizer = nil;
 
-	self.handler = nil;
 end
 
 function BlockChain.create(settings)
@@ -43,32 +42,14 @@ function BlockChain:init(settings)
 	self.historys = self.database.historys;
 	self.organizer = Organizer.create(self);
 
-	self.handler = {}
 end
 
 function BlockChain:setHandler(name, handler)
-	for k,v in ipairs(self.handler) do 
-		if v.name == name then
-			return 
-		end
-	end
-
-	self.handler[#self.handler + 1] ={name = name, handler = handler};
+	self.organizer:setHandler(name, handler);
 end
 
 function BlockChain:removeHandler(name)
-	for k,v in ipairs(self.handler) do
-		if v.name == name then
-			table.remove(self.handler, k);
-			break;
-		end
-	end
-end
-
-function BlockChain:handleEvent(...)
-	for k,v in pairs(self.handler) do
-		v.handler(...);
-	end
+	self.organizer:removeHandler(name);
 end
 
 -- get block height by hash, default top
@@ -176,9 +157,6 @@ function BlockChain:push(blockdetail)
 					blockdetail:getHeight(), #blockdetail.block.transactions,
 					Utility.HashBytesToString(blockdetail:getHash()))
 	self.database:push(blockdetail.block, blockdetail:getHeight());
-
-	-- notify transactionPool
-	self:handleEvent("PushBlock", blockdetail);
 end
 
 -- remove and return blocks above the given height
@@ -198,11 +176,6 @@ function BlockChain:pop(height )
 		top = blocks:getHeight();
 	end
 
-	-- notify transactionPool
-	for k,v in ipairs(ret) do
-		self:handleEvent("PopBlock", v);
-	end
-	
 	return ret;
 end
 
