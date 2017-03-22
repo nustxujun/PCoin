@@ -41,6 +41,7 @@ local states =
     updateTransactions = {selectPath = true},
 }
 
+local stepTimer;
 
 local blockchain;
 local transactionpool;
@@ -97,6 +98,19 @@ function PCoin.start(key, m)
 	end
 end
 
+function PCoin.clear()
+    Network.clear()
+    if stepTimer then
+        stepTimer:Change()
+        stepTimer = nil;
+    end
+
+    if PCoin.isInited() then
+        curState = states.selectPath;
+        PCoin.selectPath();
+    end
+end
+
 function PCoin.stop()
 end
 
@@ -127,15 +141,17 @@ function PCoin.step(input, delay, ...)
     if not curState[input] then    
         return 
     end
-
 	delay = delay or 1;
     local paras = {...}
-    local nextFrame = commonlib.Timer:new({callbackFunc = 
+    if stepTimer then
+        stepTimer:Change()
+    end
+    stepTimer = commonlib.Timer:new({callbackFunc = 
         function ()
             curState = states[input];
             PCoin[input](paras[1], paras[2], paras[3], paras[4],paras[5])
         end});
-    nextFrame:Change(delay);
+    stepTimer:Change(delay);
 end
 
 function PCoin.selectPath()

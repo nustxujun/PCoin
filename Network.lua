@@ -142,8 +142,7 @@ end
 function Network.receive(msg)
 	local id = msg.nid or msg.tid;
 	if not connections[id] then  
-		newConnPool[id] = true;
-		connections[id] = true
+		Network.addNewPeer(id);
 	end
 	msg.nid = msg.nid or msg.tid;
 	local conn = connections[msg.nid];

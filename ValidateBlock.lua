@@ -151,7 +151,7 @@ local function isOutputSpent(outpoint, fork, chain)
 	if not data then 
 		return false;
 	end
-
+	
 	return transactionExists(data.hash, fork, chain);
 end
 
@@ -284,11 +284,9 @@ local function connectBlock(block, fork, chain, orphanchain, orphanIndex)
 		end
 
 		local valueOut = tx:totalOutputValue();
-		echo({valueOut, valueIn})
 		if ret.valueIn < valueOut then
 			return "Error:FeesOutOfRange";
 		end
-		echo(fees)
 		fees = fees + valueIn - valueOut;
 		if fees > Constants.maxMoney then
 			return "Error:FeesOutOfRange";
